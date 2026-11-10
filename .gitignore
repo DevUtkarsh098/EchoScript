@@ -22,3 +22,4 @@ backend.hcl
 .pytest-tmp-*/
 *.core
 .active-color
+/infrastructure/terraform/single-account/build/*.zip
