@@ -16,7 +16,7 @@ def normalize_audio(source: Path, destination: Path) -> None:
 
 def transcribe(source: Path, output_dir: Path, language: str = "auto") -> dict[str, object]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    model_name = os.getenv("WHISPER_MODEL", "tiny.en")
+    model_name = os.getenv("WHISPER_MODEL", "tiny")
     compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
     with tempfile.TemporaryDirectory(prefix="echoscript-") as temporary:
         normalized = Path(temporary) / "audio.wav"
@@ -35,10 +35,20 @@ def transcribe(source: Path, output_dir: Path, language: str = "auto") -> dict[s
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Transcribe an EchoScript audio job")
-    parser.add_argument("--input", required=True, type=Path)
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--input", type=Path)
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--language", default="auto")
+    parser.add_argument("--job-id")
+    parser.add_argument("--user-sub")
     arguments = parser.parse_args()
+    if arguments.job_id:
+        if not arguments.user_sub:
+            parser.error("--user-sub is required with --job-id")
+        from .cloud_job import run_cloud_job
+        run_cloud_job(arguments.job_id, arguments.user_sub, arguments.language)
+        return
+    if not arguments.input or not arguments.output:
+        parser.error("--input and --output are required for local transcription")
     print(json.dumps(transcribe(arguments.input, arguments.output, arguments.language)))
 
 

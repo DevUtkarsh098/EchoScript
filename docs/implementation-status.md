@@ -10,11 +10,11 @@ This status describes the GitHub `main` source at baseline commit `9164e5d7a7469
 - Docker/Compose, Kubernetes manifests/job template, Terraform roots/modules, Ansible playbooks, Jenkinsfiles, Prometheus/Grafana configuration.
 - CI scripts for Terraform plan, blue/green Service switch, rollback helper, and smoke test.
 
-## Important incomplete integrations
+## Baseline limitations (before this deployment branch)
 
 - Authenticated upload does not resolve a user's job record in the baseline handler; normal authenticated upload therefore cannot complete.
 - API job start only supports mock processing. It does not create Kubernetes Jobs or invoke the standalone faster-whisper worker.
-- Inspected API source has no S3 storage adapter or DynamoDB repository. Storage/persistence integration described by architecture documents is not verified in code.
+- The baseline API source had no S3 storage adapter or DynamoDB repository. Deployment-branch adapters now exist; integrated AWS behavior is still unverified.
 - Video service end-to-end invocation/provider behavior is not verified.
 - Jenkins references missing scripts and a missing monitoring path; see the handover blocker table.
 - No tracked SonarQube stage/configuration or verified Quality Gate, OWASP ZAP pipeline/result, complete deployed monitoring/Alertmanager stack, or current cloud deployment is established.
@@ -26,6 +26,16 @@ This status describes the GitHub `main` source at baseline commit `9164e5d7a7469
 - `.gitignore` now excludes demo state, Terraform variable/plan files, temporary test output, core dumps, and local blue/green state.
 - Mock authentication now fails closed by default: `APP_ENV` defaults to `production`, and mock auth is rejected unless `APP_ENV=local`. Local Compose/example settings explicitly choose local mode; regression tests cover the guard.
 - Wrapper tests and shell syntax checks are run for this handover. Trivy is unavailable here; no real scan, Jenkins execution, image build/scan, AWS plan/apply, or cloud release has been performed.
+
+## Deployment branch implementation and verification
+
+- Frontend mock authentication now fails closed unless both `VITE_APP_ENV=local` and `VITE_MOCK_AUTH=true` are explicitly set. Cognito client configuration is passed through the frontend image build arguments; local Compose selects local demo mode explicitly.
+- Audio upload requests now carry the in-memory Cognito access token. The API resolves the job under the authenticated principal, checks the declared media type and size, and streams uploads through a temporary file before atomically moving them into place. Transcript, subtitle, audio, and video reads now use the authenticated API client. A regression test covers cross-user upload rejection.
+- Terraform defaults and image references target `us-west-2`. A single-account root defines CloudFront/private S3, Cognito, App Runner, DynamoDB, SQS/DLQ, Lambda/Step Functions, Fargate, scoped IAM roles, and budget resources. No AWS identity check or infrastructure action has been performed.
+- API source now has S3/DynamoDB/SQS adapters, authenticated ownership-scoped presigned uploads/downloads, verified upload completion, queue dispatch, and worker-side faster-whisper processing with TXT/SRT/VTT persistence. Adapter and API regression tests are present. The cloud workflow has not yet been exercised against AWS.
+- Deployment scripts verify that the active AWS account and region match Terraform outputs before image publication or frontend deployment. The infrastructure-to-image bootstrapping sequence is documented. No images or frontend assets have been published.
+- Frontend production build passes; frontend auth guard tests (3), backend pytest (10), Ruff lint, and secret-scan wrapper tests (4) pass. Compose configuration parses, Python source compiles, shell scripts parse, Terraform formatting and validation pass, and `git diff --check` passes. Trivy and a usable Docker daemon are unavailable. No live AWS tests, actual image scans, or image builds have run. Existing `npm audit` reported 15 dependency advisories (10 moderate, 3 high, 2 critical); no automatic upgrades were applied.
+- AWS account credentials are not configured, as confirmed by the owner. No AWS API has been called and no infrastructure has been created. The architecture and planning range are approved; chargeable resource creation still requires separate explicit approval.
 
 ## External verification still required
 

@@ -1,0 +1,17 @@
+output "region" { value = var.region }
+output "account_id" { value = local.account_id }
+output "frontend_url" { value = "https://${aws_cloudfront_distribution.frontend.domain_name}" }
+output "frontend_bucket" { value = aws_s3_bucket.frontend.bucket }
+output "frontend_distribution_id" { value = aws_cloudfront_distribution.frontend.id }
+output "api_url" { value = aws_ecs_express_gateway_service.api.ingress_paths[0].endpoint }
+output "input_bucket" { value = aws_s3_bucket.input.bucket }
+output "output_bucket" { value = aws_s3_bucket.output.bucket }
+output "jobs_table" { value = aws_dynamodb_table.jobs.name }
+output "worker_slots_table" { value = aws_dynamodb_table.worker_slots.name }
+output "api_image_repository" { value = aws_ecr_repository.api.repository_url }
+output "worker_image_repository" { value = aws_ecr_repository.worker.repository_url }
+output "cognito_issuer" { value = local.common_env.COGNITO_ISSUER }
+output "cognito_client_id" { value = aws_cognito_user_pool_client.web.id }
+output "cognito_domain" { value = "https://${aws_cognito_user_pool_domain.users.domain}.auth.${var.region}.amazoncognito.com" }
+output "jobs_queue_url" { value = aws_sqs_queue.jobs.url }
+output "monthly_budget_usd" { value = var.monthly_budget_usd }

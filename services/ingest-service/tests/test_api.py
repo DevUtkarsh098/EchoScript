@@ -9,7 +9,7 @@ os.environ["APP_ENV"] = "local"
 from fastapi.testclient import TestClient
 from fastapi import HTTPException
 from app.main import app
-from app.auth import get_principal
+from app.auth import Principal, get_principal
 from app.config import Settings
 
 client = TestClient(app)
@@ -25,8 +25,21 @@ def test_job_lifecycle_starts():
     response = client.post("/api/jobs", json={"filename": "meeting.mp3", "content_type": "audio/mpeg", "size_bytes": len(audio), "language": "auto", "generate_video": False})
     assert response.status_code == 201
     job_id = response.json()["job"]["id"]
-    assert client.put(f"/api/uploads/{job_id}", content=audio).status_code == 204
+    assert client.put(f"/api/uploads/{job_id}", content=audio, headers={"Content-Type": "audio/mpeg"}).status_code == 204
     assert client.post(f"/api/jobs/{job_id}/start").status_code == 200
+
+
+def test_upload_rejects_a_different_owner():
+    audio = b"owner-scoped-audio"
+    response = client.post("/api/jobs", json={"filename": "private.mp3", "content_type": "audio/mpeg", "size_bytes": len(audio)})
+    assert response.status_code == 201
+    job_id = response.json()["job"]["id"]
+    app.dependency_overrides[get_principal] = lambda: Principal(sub="another-user", name="Other", email="")
+    try:
+        upload = client.put(f"/api/uploads/{job_id}", content=audio, headers={"Content-Type": "audio/mpeg"})
+        assert upload.status_code == 404
+    finally:
+        app.dependency_overrides.pop(get_principal, None)
 
 
 def test_rejects_unsupported_type():

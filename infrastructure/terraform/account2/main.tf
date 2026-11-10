@@ -8,7 +8,7 @@ provider "aws" {
 }
 variable "region" {
   type    = string
-  default = "ap-south-1"
+  default = "us-west-2"
 }
 variable "environment" {
   type    = string
@@ -18,7 +18,7 @@ module "network" {
   source               = "../modules/networking"
   name                 = "echoscript-account2"
   cidr                 = "10.20.0.0/16"
-  availability_zones   = ["ap-south-1a", "ap-south-1b"]
+  availability_zones   = ["us-west-2a", "us-west-2b"]
   public_subnet_cidrs  = ["10.20.1.0/24", "10.20.2.0/24"]
   private_subnet_cidrs = ["10.20.11.0/24", "10.20.12.0/24"]
 }

@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 262_144_000
     cognito_issuer: str = ""
     cognito_client_id: str = ""
+    aws_region: str = "us-west-2"
+    storage_backend: str = "local"
+    repository_backend: str = "local"
+    input_bucket: str = ""
+    output_bucket: str = ""
+    dynamodb_table: str = ""
+    job_queue_url: str = ""
+    presigned_url_ttl_seconds: int = 900
+    state_machine_arn: str = ""
 
     @property
     def allowed_origins(self) -> list[str]:

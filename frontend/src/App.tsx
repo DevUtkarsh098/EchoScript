@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -7,10 +7,49 @@ import {
   List, LoaderCircle, LogOut, Menu, Mic2, Moon, MoreHorizontal, Play, Plus, RefreshCw, Search, Settings,
   Sparkles, UploadCloud, User, Video, WandSparkles, X, Zap
 } from 'lucide-react'
-import { absoluteAsset, api, uploadFile } from './api'
+import { api, downloadAsset, getAsset, uploadFile } from './api'
 import type { Job, JobStatus } from './types'
+import { isMockAuthEnabled } from './auth-config'
 
-const mockAuth = import.meta.env.VITE_MOCK_AUTH !== 'false'
+const mockAuth = isMockAuthEnabled(import.meta.env.VITE_APP_ENV, import.meta.env.VITE_MOCK_AUTH)
+
+function useProtectedAsset(path?: string) {
+  const [url, setUrl] = useState<string>()
+  useEffect(() => {
+    let active = true
+    let objectUrl: string | undefined
+    setUrl(undefined)
+    if (path) {
+      getAsset(path).then(blob => {
+        if (active) {
+          objectUrl = URL.createObjectURL(blob)
+          setUrl(objectUrl)
+        }
+      }).catch(() => { if (active) setUrl(undefined) })
+    }
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [path])
+  return url
+}
+
+function DownloadFileButton({ path, className, title, children }: { path?: string; className: string; title?: string; children: React.ReactNode }) {
+  const [error, setError] = useState(false)
+  const [busy, setBusy] = useState(false)
+  return <>
+    <button type="button" className={className} title={title} disabled={!path || busy} onClick={async () => {
+      if (!path) return
+      setBusy(true)
+      setError(false)
+      try { await downloadAsset(path, path.split('/').pop() || 'download') }
+      catch { setError(true) }
+      finally { setBusy(false) }
+    }}>{children}</button>
+    {error && <span role="alert">Download failed. Please try again.</span>}
+  </>
+}
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return <div className="brand"><span className="brand-mark"><i /><i /><i /><i /></span>{!compact && <span><b>EchoScript</b><small>STUDIO</small></span>}</div>
@@ -94,6 +133,7 @@ function Transcribe() {
       const created = await api.create(file, language)
       setStage('Uploading audio'); controller.current = new AbortController()
       await uploadFile(created.upload_url, file, created.upload_headers, setProgress, controller.current.signal)
+      await api.completeUpload(created.job.id)
       setStage('Starting transcription'); await api.start(created.job.id)
       navigate(`/jobs/${created.job.id}`)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to start transcription'); setStage('') }
@@ -131,13 +171,15 @@ function JobDetail() {
   const jobQuery = useQuery({ queryKey: ['job', jobId], queryFn: () => api.job(jobId), refetchInterval: query => query.state.data && (query.state.data.status === 'RUNNING' || ['PENDING', 'RENDERING'].includes(query.state.data.video_status)) ? 2500 : false })
   const videoMutation = useMutation({ mutationFn: () => api.video(jobId), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['job', jobId] }) })
   const job = jobQuery.data
+  const audioUrl = useProtectedAsset(job?.outputs.audio)
+  const videoUrl = useProtectedAsset(job?.outputs.video)
   if (jobQuery.isLoading) return <Shell><div className="page"><div className="detail-skeleton" /></div></Shell>
   if (!job) return <Shell><div className="page"><Empty title="Job not found" body="This job may have been removed or belongs to another user." /></div></Shell>
   const active = ['CREATED', 'UPLOADED', 'RUNNING'].includes(job.status)
   return <Shell><div className="page"><button className="back-link" onClick={() => navigate('/jobs')}><ArrowLeft />Back to my jobs</button><div className="detail-head"><div className="detail-file"><span><FileAudio /></span><div><h1>{job.filename}</h1><p>Uploaded {new Date(job.created_at).toLocaleString()} · {(job.size_bytes / 1_048_576).toFixed(2)} MB</p></div></div><StatusPill status={job.status} /></div>
     {active && <section className="processing-banner"><div className="processing-orb"><span /><Mic2 /></div><div><span>PROCESSING YOUR AUDIO</span><h2>{job.status === 'RUNNING' ? 'Transcribing spoken words…' : 'Preparing your recording…'}</h2><p>We’ll keep this page updated automatically. You can safely leave and come back later.</p><div className="indeterminate"><i /></div></div></section>}
     {job.status === 'FAILED' && <div className="error-banner"><CircleAlert /><div><b>Transcription could not be completed</b><p>{job.error_message || 'Review the audio file and try again.'}</p></div></div>}
-    {job.status === 'TRANSCRIBED' && <div className="detail-grid"><section className="panel transcript-panel"><div className="panel-head"><div><span className="eyebrow">TRANSCRIPT</span><h2>Your audio, made searchable</h2></div><div><button className="button secondary small" onClick={() => navigator.clipboard.writeText(job.transcript_preview || '')}><Copy />Copy</button><a className="button primary small" href={absoluteAsset(job.outputs.transcript)} download><Download />Download TXT</a></div></div>{job.outputs.audio && <audio controls src={absoluteAsset(job.outputs.audio)} />}<label className="transcript-search"><Search /><input placeholder="Search transcript" /></label><div className="transcript-copy"><p>{job.transcript_preview}</p></div></section><aside className="result-aside"><section className="panel"><h3>Download results</h3><p>Use your transcript wherever knowledge needs to travel.</p>{[['TXT', 'Plain text transcript', job.outputs.transcript], ['SRT', 'Timed subtitle file', job.outputs.srt], ['VTT', 'Web-ready captions', job.outputs.vtt]].map(([format, label, path]) => <a className={`download-row ${!path ? 'disabled' : ''}`} href={absoluteAsset(path)} key={format}><span><FileText /></span><div><b>{format}</b><small>{label}</small></div><Download /></a>)}</section><section className="panel video-result"><span className="video-symbol"><WandSparkles /></span><h3>{job.video_status === 'DONE' ? 'Your recap is ready' : job.video_status === 'RENDERING' ? 'Rendering your recap' : 'Turn insight into a story'}</h3><p>Create a concise AI-presenter recap from this transcript.</p>{job.video_status === 'DONE' && job.outputs.video ? <><video controls src={absoluteAsset(job.outputs.video)} /><a className="button primary full" href={absoluteAsset(job.outputs.video)}><Download />Download MP4</a></> : job.video_status === 'RENDERING' || job.video_status === 'PENDING' ? <button className="button secondary full" disabled><LoaderCircle className="spin" />Video rendering</button> : <button className="button primary full" onClick={() => videoMutation.mutate()} disabled={videoMutation.isPending}><Sparkles />Generate recap video</button>}</section></aside></div>}
+    {job.status === 'TRANSCRIBED' && <div className="detail-grid"><section className="panel transcript-panel"><div className="panel-head"><div><span className="eyebrow">TRANSCRIPT</span><h2>Your audio, made searchable</h2></div><div><button className="button secondary small" onClick={() => navigator.clipboard.writeText(job.transcript_preview || '')}><Copy />Copy</button><DownloadFileButton path={job.outputs.transcript} className="button primary small"><Download />Download TXT</DownloadFileButton></div></div>{audioUrl && <audio controls src={audioUrl} />}<label className="transcript-search"><Search /><input placeholder="Search transcript" /></label><div className="transcript-copy"><p>{job.transcript_preview}</p></div></section><aside className="result-aside"><section className="panel"><h3>Download results</h3><p>Use your transcript wherever knowledge needs to travel.</p>{[['TXT', 'Plain text transcript', job.outputs.transcript], ['SRT', 'Timed subtitle file', job.outputs.srt], ['VTT', 'Web-ready captions', job.outputs.vtt]].map(([format, label, path]) => <DownloadFileButton key={format} path={path} className={`download-row ${!path ? 'disabled' : ''}`}><span><FileText /></span><div><b>{format}</b><small>{label}</small></div><Download /></DownloadFileButton>)}</section><section className="panel video-result"><span className="video-symbol"><WandSparkles /></span><h3>{job.video_status === 'DONE' ? 'Your recap is ready' : job.video_status === 'RENDERING' ? 'Rendering your recap' : 'Turn insight into a story'}</h3><p>Create a concise AI-presenter recap from this transcript.</p>{job.video_status === 'DONE' && job.outputs.video ? <><video controls src={videoUrl} /><DownloadFileButton path={job.outputs.video} className="button primary full"><Download />Download MP4</DownloadFileButton></> : job.video_status === 'RENDERING' || job.video_status === 'PENDING' ? <button className="button secondary full" disabled><LoaderCircle className="spin" />Video rendering</button> : <button className="button primary full" onClick={() => videoMutation.mutate()} disabled={videoMutation.isPending}><Sparkles />Generate recap video</button>}</section></aside></div>}
   </div></Shell>
 }
 
@@ -167,7 +209,7 @@ function Library() {
   const [tab, setTab] = useState('ALL')
   const [grid, setGrid] = useState(true)
   const files = jobs.flatMap(job => [{ type: 'TRANSCRIPT', ext: 'TXT', path: job.outputs.transcript, job }, { type: 'SUBTITLE', ext: 'SRT', path: job.outputs.srt, job }, { type: 'SUBTITLE', ext: 'VTT', path: job.outputs.vtt, job }, { type: 'VIDEO', ext: 'MP4', path: job.outputs.video, job }]).filter(item => item.path && (tab === 'ALL' || item.type === tab))
-  return <Shell><div className="page"><PageHead title="My Library" subtitle="Every transcript, subtitle, and recap—organized around its source audio." /><section className="panel library-panel"><div className="job-toolbar"><div className="tabs">{[['ALL', 'All files'], ['TRANSCRIPT', 'Transcripts'], ['SUBTITLE', 'Subtitles'], ['VIDEO', 'AI recap videos']].map(([value, label]) => <button className={tab === value ? 'active' : ''} onClick={() => setTab(value)} key={value}>{label}</button>)}</div><div className="view-toggle"><button className={grid ? 'active' : ''} onClick={() => setGrid(true)}><Grid2X2 /></button><button className={!grid ? 'active' : ''} onClick={() => setGrid(false)}><List /></button></div></div>{files.length ? <div className={grid ? 'file-grid' : 'file-list'}>{files.map((file, index) => <article className="file-card" key={`${file.job.id}-${file.ext}`}><div className={`file-preview ${file.ext === 'MP4' ? 'video' : ''}`}>{file.ext === 'MP4' ? <Film /> : <FileText />}<span>{file.ext}</span></div><div className="file-meta"><b>{file.job.filename.replace(/\.[^.]+$/, '')}</b><span>{file.type.toLowerCase()} · {new Date(file.job.updated_at).toLocaleDateString()}</span></div><a className="icon-button" href={absoluteAsset(file.path)} title="Download"><Download /></a></article>)}</div> : <Empty title="Your library is waiting" body="Completed jobs will place transcripts, subtitles, and videos here automatically." />}</section></div></Shell>
+  return <Shell><div className="page"><PageHead title="My Library" subtitle="Every transcript, subtitle, and recap—organized around its source audio." /><section className="panel library-panel"><div className="job-toolbar"><div className="tabs">{[['ALL', 'All files'], ['TRANSCRIPT', 'Transcripts'], ['SUBTITLE', 'Subtitles'], ['VIDEO', 'AI recap videos']].map(([value, label]) => <button className={tab === value ? 'active' : ''} onClick={() => setTab(value)} key={value}>{label}</button>)}</div><div className="view-toggle"><button className={grid ? 'active' : ''} onClick={() => setGrid(true)}><Grid2X2 /></button><button className={!grid ? 'active' : ''} onClick={() => setGrid(false)}><List /></button></div></div>{files.length ? <div className={grid ? 'file-grid' : 'file-list'}>{files.map((file, index) => <article className="file-card" key={`${file.job.id}-${file.ext}`}><div className={`file-preview ${file.ext === 'MP4' ? 'video' : ''}`}>{file.ext === 'MP4' ? <Film /> : <FileText />}<span>{file.ext}</span></div><div className="file-meta"><b>{file.job.filename.replace(/\.[^.]+$/, '')}</b><span>{file.type.toLowerCase()} · {new Date(file.job.updated_at).toLocaleDateString()}</span></div><DownloadFileButton path={file.path} className="icon-button" title="Download"><Download /></DownloadFileButton></article>)}</div> : <Empty title="Your library is waiting" body="Completed jobs will place transcripts, subtitles, and videos here automatically." />}</section></div></Shell>
 }
 
 function SettingsPage() {

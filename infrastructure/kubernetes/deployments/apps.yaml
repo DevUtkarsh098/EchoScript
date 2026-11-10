@@ -10,7 +10,7 @@ spec:
       nodeSelector: {role: app}
       containers:
         - name: gateway-ui
-          image: ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com/echoscript/gateway-ui:VERSION
+          image: ACCOUNT.dkr.ecr.us-west-2.amazonaws.com/echoscript/gateway-ui:VERSION
           ports: [{containerPort: 80}]
           readinessProbe: {httpGet: {path: /, port: 80}, initialDelaySeconds: 5, periodSeconds: 5}
           livenessProbe: {httpGet: {path: /, port: 80}, initialDelaySeconds: 20, periodSeconds: 15}
@@ -29,7 +29,7 @@ spec:
       nodeSelector: {role: app}
       containers:
         - name: ingest-service
-          image: ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com/echoscript/ingest-service:VERSION
+          image: ACCOUNT.dkr.ecr.us-west-2.amazonaws.com/echoscript/ingest-service:VERSION
           ports: [{containerPort: 8000}]
           envFrom: [{configMapRef: {name: echoscript-config}}, {secretRef: {name: echoscript-runtime}}]
           readinessProbe: {httpGet: {path: /ready, port: 8000}, initialDelaySeconds: 5, periodSeconds: 5}
@@ -48,7 +48,7 @@ spec:
       nodeSelector: {role: app}
       containers:
         - name: video-service
-          image: ACCOUNT.dkr.ecr.ap-south-1.amazonaws.com/echoscript/video-service:VERSION
+          image: ACCOUNT.dkr.ecr.us-west-2.amazonaws.com/echoscript/video-service:VERSION
           ports: [{containerPort: 8001}]
           envFrom: [{secretRef: {name: echoscript-runtime}}]
           readinessProbe: {httpGet: {path: /health, port: 8001}, initialDelaySeconds: 5, periodSeconds: 5}

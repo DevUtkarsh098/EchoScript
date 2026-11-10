@@ -24,7 +24,12 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: http://localhost:8000
-        VITE_MOCK_AUTH: "true"
+        VITE_MOCK_AUTH: ${MOCK_AUTH:-true}
+        VITE_APP_ENV: ${APP_ENV:-local}
+        VITE_COGNITO_DOMAIN: ${COGNITO_DOMAIN:-}
+        VITE_COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
+        VITE_COGNITO_REDIRECT_URI: ${COGNITO_REDIRECT_URI:-http://localhost:5173/auth/callback}
+        VITE_COGNITO_SCOPE: ${COGNITO_SCOPE:-openid email profile}
     ports:
       - "5173:80"
     depends_on:

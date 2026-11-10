@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { isMockAuthEnabled } from './auth-config'
 
-const mockAuth = import.meta.env.VITE_MOCK_AUTH !== 'false'
+const mockAuth = isMockAuthEnabled(import.meta.env.VITE_APP_ENV, import.meta.env.VITE_MOCK_AUTH)
 const domain = import.meta.env.VITE_COGNITO_DOMAIN || ''
 const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID || ''
 const redirectUri = import.meta.env.VITE_COGNITO_REDIRECT_URI || `${window.location.origin}/auth/callback`

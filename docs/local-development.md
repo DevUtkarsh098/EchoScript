@@ -18,7 +18,7 @@ docker build -t echoscript-worker services/transcribe-worker
 docker run --rm -v ${PWD}:/work echoscript-worker --input /work/sample.mp3 --output /work/results --language auto
 ```
 
-The first run downloads the configured faster-whisper model. `tiny.en` and CPU `int8` are local defaults; use a persistent `/models` volume for the model cache.
+The first run downloads the configured faster-whisper model. The default is the multilingual `tiny` model with CPU `int8`; use a persistent `/models` volume for the model cache.
 
 ## Windows commands
 
