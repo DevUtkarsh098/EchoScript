@@ -45,7 +45,7 @@ WORKER_REPOSITORY="$(terraform -chdir="$TF_DIR" output -raw worker_image_reposit
 aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "${EXPECTED_ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com"
 docker build --platform linux/amd64 -f "$ROOT/services/ingest-service/Dockerfile" -t "$API_REPOSITORY:$TAG" "$ROOT/services/ingest-service"
 docker build --platform linux/amd64 -f "$ROOT/services/transcribe-worker/Dockerfile" -t "$WORKER_REPOSITORY:$TAG" "$ROOT/services/transcribe-worker"
-"$ROOT/ci/scripts/scan-secrets.sh"
+bash "$ROOT/ci/scripts/scan-secrets.sh"
 if ! command -v trivy >/dev/null 2>&1; then
   echo "Required Trivy image scanner is missing; refusing to publish images." >&2
   exit 127
