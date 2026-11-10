@@ -6,7 +6,8 @@ pipeline {
       parallel {
         stage('Terraform') { steps { sh 'terraform fmt -check -recursive infrastructure/terraform'; sh 'for d in infrastructure/terraform/account*; do terraform -chdir=$d init -backend=false && terraform -chdir=$d validate; done' } }
         stage('Ansible') { steps { sh 'ansible-playbook --syntax-check infrastructure/ansible/playbooks/site.yml' } }
-        stage('Security') { steps { sh 'checkov -d infrastructure/terraform --quiet' } }
+        stage('IaC security') { steps { sh 'checkov -d infrastructure/terraform --quiet' } }
+        stage('Secret scan') { steps { sh 'bash ci/scripts/scan-secrets.sh' } }
       }
     }
     stage('Plan') { steps { withAWS(role: env.TERRAFORM_ROLE_ARN, roleSessionName: "jenkins-${BUILD_NUMBER}") { sh './ci/scripts/terraform-plan.sh' } } }

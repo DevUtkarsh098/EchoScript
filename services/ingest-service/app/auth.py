@@ -15,6 +15,8 @@ class Principal:
 
 def get_principal(authorization: str | None = Header(default=None), settings: Settings = Depends(get_settings)) -> Principal:
     if settings.mock_auth:
+        if settings.app_env.lower() != "local":
+            raise HTTPException(status_code=503, detail="Mock authentication is only available in local mode")
         return Principal(sub="demo-user-001", name="Alex Morgan", email="alex@echoscript.local")
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Authentication required")

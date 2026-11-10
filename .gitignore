@@ -9,3 +9,14 @@ data/
 *.pyc
 *.tfstate*
 .terraform/
+.env.demo
+.aws-demo-state.json
+*.tfvars
+*.tfvars.json
+*.tfplan
+*.tfplan.*
+backend.hcl
+.terraform.*
+.pytest-tmp-*/
+*.core
+.active-color

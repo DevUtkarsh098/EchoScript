@@ -6,7 +6,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-    app_env: str = "local"
+    # Fail closed when deployments omit APP_ENV; local demo mode must be explicit.
+    app_env: str = "production"
     app_version: str = "0.1.0"
     commit_sha: str = "development"
     deployment_color: str = "local"

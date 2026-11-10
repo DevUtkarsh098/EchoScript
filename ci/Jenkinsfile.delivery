@@ -3,11 +3,12 @@ pipeline {
   options { timestamps(); disableConcurrentBuilds() }
   environment { IMAGE_TAG = "${GIT_COMMIT}"; NAMESPACE = 'echoscript' }
   stages {
+    stage('Secret scan') { steps { sh 'bash ci/scripts/scan-secrets.sh' } }
     stage('Test') { parallel {
       stage('Frontend') { steps { dir('frontend') { sh 'npm ci'; sh 'npm run build' } } }
       stage('Backend') { steps { dir('services/ingest-service') { sh 'python -m pip install -r requirements.txt'; sh 'pytest -q' } } }
     } }
-    stage('Build and scan') { steps { sh 'docker build -t gateway-ui:${IMAGE_TAG} frontend'; sh 'docker build -t ingest-service:${IMAGE_TAG} services/ingest-service'; sh 'trivy image --exit-code 1 --severity CRITICAL gateway-ui:${IMAGE_TAG}'; sh 'trivy image --exit-code 1 --severity CRITICAL ingest-service:${IMAGE_TAG}' } }
+    stage('Build and scan') { steps { sh 'docker build -t gateway-ui:${IMAGE_TAG} frontend'; sh 'docker build -t ingest-service:${IMAGE_TAG} services/ingest-service'; sh 'trivy image --exit-code 1 --ignorefile= --severity HIGH,CRITICAL gateway-ui:${IMAGE_TAG}'; sh 'trivy image --exit-code 1 --ignorefile= --severity HIGH,CRITICAL ingest-service:${IMAGE_TAG}' } }
     stage('Push') { steps { withAWS(role: env.ECR_PUSH_ROLE_ARN, roleSessionName: "jenkins-${BUILD_NUMBER}") { sh './ci/scripts/push-images.sh ${IMAGE_TAG}' } } }
     stage('Deploy inactive') { steps { script { env.TARGET_COLOR = sh(script: "test -f .active-color && test \$(cat .active-color) = blue && echo green || echo blue", returnStdout: true).trim() }; sh './ci/scripts/deploy-color.sh ${TARGET_COLOR} ${IMAGE_TAG}' } }
     stage('Verify and switch') { steps { sh './ci/scripts/switch-color.sh ${TARGET_COLOR}' } }
