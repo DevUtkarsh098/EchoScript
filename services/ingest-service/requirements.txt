@@ -1,8 +1,8 @@
-fastapi==0.115.6
+fastapi==0.143.3
 uvicorn[standard]==0.34.0
 pydantic-settings==2.7.1
-python-multipart==0.0.20
-PyJWT[crypto]==2.10.1
+python-multipart==0.0.33
+PyJWT[crypto]==2.15.1
 prometheus-client==0.21.1
 boto3==1.35.90
 httpx==0.28.1
