@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=terraform /bin/terraform /usr/local/bin/terraform
 COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
 COPY --from=docker /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=docker /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=aws /usr/local/aws-cli /usr/local/aws-cli

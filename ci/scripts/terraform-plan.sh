@@ -16,7 +16,7 @@ terraform -chdir=infrastructure/terraform/single-account plan -input=false -lock
   -var-file="$TF_VAR_FILE" -var="image_tag=$IMAGE_TAG" -out="$ROOT/ci-private/release.tfplan" > ci-private/plan.log 2>&1 || {
   echo 'Terraform plan failed; restricted workspace log available to the operator.' >&2; exit 1;
 }
-terraform -chdir=infrastructure/terraform/single-account show -json "$ROOT/ci-private/release.tfplan" \
+terraform -chdir=infrastructure/terraform/single-account show -json "$ROOT/ci-private/release.tfplan" 2> ci-private/show.log \
   | python3 ci/scripts/plan_guard.py ci-private/release.tfplan > ci-artifacts/plan-summary.json
 age -r "$TF_PLAN_RECIPIENT" -o ci-artifacts/release.tfplan.age ci-private/release.tfplan
 sha256sum ci-private/release.tfplan > ci-private/release.tfplan.sha256

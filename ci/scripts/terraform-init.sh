@@ -3,7 +3,7 @@ set +x
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-bash ci/scripts/aws-preflight.sh
+source ci/scripts/aws-preflight.sh
 : "${TF_BACKEND_FILE:?Administrator must mount the existing backend configuration}"
 : "${TF_STATE_BUCKET:?Existing state bucket must be confirmed by the administrator}"
 : "${TF_STATE_KEY:?Existing state key must be confirmed by the administrator}"

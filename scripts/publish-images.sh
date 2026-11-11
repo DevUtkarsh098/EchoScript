@@ -26,9 +26,13 @@ if [[ "$(git rev-parse "$TAG^{commit}" 2>/dev/null || true)" != "$(git rev-parse
   exit 2
 fi
 EXPECTED_ACCOUNT="$(terraform -chdir="$TF_DIR" output -raw account_id)" || {
-  echo "Terraform outputs are unavailable. First create the ECR repositories in the approved new account." >&2
+  echo "Existing Terraform outputs are unavailable. Initialize the confirmed existing backend; do not recreate repositories." >&2
   exit 2
 }
+if [[ "$EXPECTED_ACCOUNT" != 598391748654 || "$REGION" != us-west-2 ]]; then
+  echo "Refusing to publish outside the existing account 598391748654/us-west-2." >&2
+  exit 3
+fi
 IDENTITY="$(aws sts get-caller-identity --output json)"
 ACTIVE_ACCOUNT="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Account"])' <<< "$IDENTITY")"
 if [[ "$ACTIVE_ACCOUNT" != "$EXPECTED_ACCOUNT" ]]; then

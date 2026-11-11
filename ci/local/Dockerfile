@@ -2,6 +2,8 @@
 FROM jenkins/jenkins:lts-jdk21 AS controller
 RUN jenkins-plugin-cli --plugins workflow-aggregator git pipeline-stage-view
 FROM echoscript-ci-tools:local
+RUN apt-get update && apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=controller /opt/java/openjdk /opt/java/openjdk
 COPY --from=controller /usr/share/jenkins/jenkins.war /opt/jenkins.war
 COPY --from=controller /usr/share/jenkins/ref/plugins /opt/jenkins-plugins

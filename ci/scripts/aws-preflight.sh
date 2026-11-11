@@ -10,10 +10,13 @@ set -euo pipefail
 }
 [[ -r "${AWS_WEB_IDENTITY_TOKEN_FILE:?OIDC token file is required}" ]] || exit 2
 export AWS_CONFIG_FILE=/dev/null AWS_SHARED_CREDENTIALS_FILE=/dev/null AWS_EC2_METADATA_DISABLED=true
+# Retired jobs must not inject migration/target/destroy flags into this release.
+for option_var in ${!TF_CLI_ARGS@}; do unset "$option_var"; done
+unset TF_REATTACH_PROVIDERS
 identity="$(aws sts get-caller-identity --output json)"
 python3 -c 'import json,os,sys
 x=json.load(sys.stdin)
 role=os.environ["AWS_ROLE_ARN"].rsplit("/",1)[1]
-assert x["Account"] == "598391748654", "Wrong AWS account"
-assert x["Arn"].startswith("arn:aws:sts::598391748654:assumed-role/"+role+"/"), "Wrong AWS role"
+if x["Account"] != "598391748654": raise SystemExit("Wrong AWS account")
+if not x["Arn"].startswith("arn:aws:sts::598391748654:assumed-role/"+role+"/"): raise SystemExit("Wrong AWS role")
 print("Verified Jenkins assumed role in account 598391748654, us-west-2")' <<< "$identity"

@@ -8,11 +8,12 @@ TOOLS_IMAGE="${TOOLS_IMAGE:-echoscript-ci-tools:local}"
 TF_DIR=infrastructure/terraform/single-account
 case "${1:?validation stage required}" in
   tools)
-    git --version; docker --version; node --version; npm --version; python3 --version
+    git --version; docker --version; docker buildx version; node --version; npm --version; python3 --version
     terraform version; trivy --version; aws --version; ansible --version; ansible-lint --version
     ;;
   frontend)
-    (cd frontend && npm ci && npm run build)
+    (cd frontend && npm ci && npm run build && npm test -- --run \
+      && npm audit --audit-level=high --json > "$ROOT/ci-artifacts/npm-audit.json")
     ;;
   api)
     docker build --platform linux/amd64 -t "echoscript-api:$TAG" services/ingest-service
@@ -41,6 +42,11 @@ case "${1:?validation stage required}" in
     ;;
   images)
     docker build --platform linux/amd64 -t "echoscript-frontend:$TAG" frontend
+    # Static bundles do not retain package-lock metadata in the runtime image.
+    # Scan the locked JS dependency graph too, including build/test tools.
+    trivy fs --scanners vuln --include-dev-deps --ignorefile= --severity HIGH,CRITICAL --exit-code 1 \
+      --skip-dirs frontend/node_modules --skip-dirs frontend/dist --format json \
+      --output ci-artifacts/trivy-frontend-dependencies.json frontend
     for component in api worker frontend; do
       trivy image --scanners vuln --ignorefile= --severity HIGH,CRITICAL --exit-code 1 \
         --format json --output "ci-artifacts/trivy-${component}.json" "echoscript-${component}:$TAG"

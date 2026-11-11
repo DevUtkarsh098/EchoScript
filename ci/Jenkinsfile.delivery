@@ -9,9 +9,11 @@ properties([
     ])
 ])
 node('echoscript-release') {
+    deleteDir()
     checkout scm
     def flow = load 'ci/pipeline.groovy'
     try {
+        if (!['validate', 'deploy', 'rollback'].contains(params.ACTION)) { error('Unsupported release action.') }
         if (env.CHANGE_ID || env.CHANGE_URL) { error('PR builds cannot enter the release job.') }
         sh 'mkdir -p ci-artifacts ci-private; chmod 700 ci-private; git rev-parse HEAD > ci-artifacts/source-commit.txt'
         env.SOURCE_SHA = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
@@ -59,7 +61,11 @@ node('echoscript-release') {
         }
     } finally {
         // ci-private contains plaintext plans and presigned URLs. Never archive it.
-        flow.archiveEvidence()
-        sh 'python3 ci/scripts/clean-private.py'
+        try {
+            sh 'bash ci/scripts/archive-private-logs.sh'
+            flow.archiveEvidence()
+        } finally {
+            sh 'python3 ci/scripts/clean-private.py'
+        }
     }
 }

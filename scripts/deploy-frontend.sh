@@ -7,7 +7,7 @@ cd "$ROOT"
 MODE="${1:?prepare|prepare-rollback|deploy|rollback required}"
 TAG="${2:?Full immutable release SHA required}"
 [[ "$TAG" =~ ^[a-f0-9]{40}$ ]] || exit 2
-bash ci/scripts/aws-preflight.sh
+source ci/scripts/aws-preflight.sh
 export TF_DATA_DIR="$ROOT/ci-private/tf-release"
 TF_DIR="$ROOT/infrastructure/terraform/single-account"
 output() { terraform -chdir="$TF_DIR" output -raw "$1"; }

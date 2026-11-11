@@ -9,7 +9,7 @@ REGISTRY=598391748654.dkr.ecr.us-west-2.amazonaws.com
 case "${1:?release command required}" in
   verify-tag) ;;
   verify-images)
-    bash ci/scripts/aws-preflight.sh
+    source ci/scripts/aws-preflight.sh
     export DOCKER_CONFIG="$ROOT/ci-private/docker-read"
     mkdir -p "$DOCKER_CONFIG"
     trap 'docker logout "$REGISTRY" >/dev/null 2>&1 || true; rm -f "$DOCKER_CONFIG/config.json"' EXIT
@@ -23,7 +23,7 @@ case "${1:?release command required}" in
     done
     ;;
   publish)
-    bash ci/scripts/aws-preflight.sh
+    source ci/scripts/aws-preflight.sh
     [[ "$IMAGE_TAG" == "$(git rev-parse HEAD)" ]]
     [[ -z "$(git status --porcelain --untracked-files=no)" ]] || { echo 'Commit source changes before publishing.' >&2; exit 2; }
     export DOCKER_CONFIG="$ROOT/ci-private/docker"
@@ -46,7 +46,7 @@ case "${1:?release command required}" in
     done
     ;;
   apply)
-    bash ci/scripts/aws-preflight.sh
+    source ci/scripts/aws-preflight.sh
     export TF_DATA_DIR="$ROOT/ci-private/tf-release"
     sha256sum --check --status ci-private/release.tfplan.sha256
     # Saved plan only: no replanning, -target, state migration, destroy, or data cleanup.

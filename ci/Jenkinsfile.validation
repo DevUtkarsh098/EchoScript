@@ -1,5 +1,6 @@
 // Multibranch/PR job: isolated Docker agent with NO AWS access or production mounts.
 node('echoscript-validation') {
+    deleteDir()
     checkout scm
     def flow = load 'ci/pipeline.groovy'
     try {

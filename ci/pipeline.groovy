@@ -15,6 +15,7 @@ def awsRole(String variable, Closure action) {
         error('Administrator must configure a Jenkins OIDC role and short-lived token file; no SSO or static-key fallback.')
     }
     withEnv(["AWS_ROLE_ARN=${role}", 'AWS_REGION=us-west-2', 'AWS_DEFAULT_REGION=us-west-2',
+             "AWS_ROLE_SESSION_NAME=echoscript-${env.BUILD_NUMBER}",
              'AWS_EC2_METADATA_DISABLED=true', 'AWS_CONFIG_FILE=/dev/null', 'AWS_SHARED_CREDENTIALS_FILE=/dev/null']) {
         sh 'bash ci/scripts/aws-preflight.sh'
         action()
