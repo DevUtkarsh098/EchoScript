@@ -11,12 +11,17 @@ def validate() {
 
 def awsRole(String variable, Closure action) {
     def role = env[variable]
-    if (!role || !env.AWS_WEB_IDENTITY_TOKEN_FILE) {
-        error('Administrator must configure a Jenkins OIDC role and short-lived token file; no SSO or static-key fallback.')
+    def mode = env.AWS_JENKINS_CREDENTIAL_MODE ?: 'oidc'
+    if (!role || (mode == 'oidc' && !env.AWS_WEB_IDENTITY_TOKEN_FILE)) {
+        error('Configure an approved Jenkins machine identity; no developer SSO or static-key fallback.')
     }
-    withEnv(["AWS_ROLE_ARN=${role}", 'AWS_REGION=us-west-2', 'AWS_DEFAULT_REGION=us-west-2',
+    def machineProfile = mode == 'ec2-instance-profile' ? "jenkins-${role.tokenize('/').last().replace('echoscript-jenkins-', '')}" : ''
+    withEnv(["AWS_ROLE_ARN=${role}", "AWS_JENKINS_CREDENTIAL_MODE=${mode}", "AWS_PROFILE=${machineProfile}",
+             'AWS_REGION=us-west-2', 'AWS_DEFAULT_REGION=us-west-2',
              "AWS_ROLE_SESSION_NAME=echoscript-${env.BUILD_NUMBER}",
-             'AWS_EC2_METADATA_DISABLED=true', 'AWS_CONFIG_FILE=/dev/null', 'AWS_SHARED_CREDENTIALS_FILE=/dev/null']) {
+             "AWS_EC2_METADATA_DISABLED=${mode == 'ec2-instance-profile' ? 'false' : 'true'}",
+             "AWS_CONFIG_FILE=${mode == 'ec2-instance-profile' ? '/etc/echoscript/aws/config' : '/dev/null'}",
+             'AWS_SHARED_CREDENTIALS_FILE=/dev/null']) {
         sh 'bash ci/scripts/aws-preflight.sh'
         action()
     }

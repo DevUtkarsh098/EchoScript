@@ -5,6 +5,7 @@ cd "$ROOT/infrastructure/ansible"
 export ANSIBLE_CONFIG="$PWD/ansible.cfg"
 ansible-lint --offline
 ansible-playbook playbooks/site.yml --syntax-check
+ansible-playbook playbooks/jenkins-hosts.yml --syntax-check
 # This script runs only INSIDE a fresh disposable Docker container as root.
 [[ -f /.dockerenv && "$(id -u)" == 0 ]] || { echo 'Use the disposable Docker target.' >&2; exit 2; }
 ansible-playbook playbooks/site.yml --check

@@ -1,0 +1,20 @@
+---
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-west-2
+filters:
+  owner-id: '598391748654'
+  tag:Project: echoscript-jenkins
+  instance-state-name: running
+hostnames:
+  - instance-id
+groups:
+  jenkins_controller: tags.JenkinsRole == 'controller'
+  jenkins_agents: tags.JenkinsRole in ['validation', 'release']
+  jenkins_disposable: tags.JenkinsRole == 'disposable'
+compose:
+  ansible_host: instance_id
+  jenkins_host_role: tags.JenkinsRole
+  ansible_connection: "'amazon.aws.aws_ssm'"
+  ansible_aws_ssm_region: "'us-west-2'"
+  ansible_aws_ssm_bucket_name: "'echoscript-598391748654-jenkins-ssm-transfer'"

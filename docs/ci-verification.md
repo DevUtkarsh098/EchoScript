@@ -2,6 +2,14 @@
 
 Date: 2026-11-11. Branch `giri`, based on `imran` commit `c528ca0`. This record separates implemented controls, actual local tests, and unexecuted production work. The owner reports the existing transcription path is working; this task does not reclassify that owner test as a Jenkins smoke test.
 
+## AWS-only hosting update
+
+The latest user instructions require AWS-hosted Jenkins and a disposable **AWS** Ansible target after cost approval. The laptop controller was stopped and its launch files retired. Historical localhost links below are retained as evidence, not current hosting or acceptance.
+
+Prepared [the costed AWS design](jenkins-aws-design.md), proposed `jenkins-hosting` Terraform root, SSM inventory and guarded host foundation role. Added fixed 15-minute EC2 machine-role profiles with tests rejecting developer/static-key profiles. Backend-free Terraform validation passed, Ansible lint/syntax passed with `amazon.aws` 10.3.2, and 18 CI safety tests passed. No AWS backend was initialized and no hosting plan/apply or AWS target check/apply test was executed. Own profile `giri` and the account contact email remain to be verified after approval; no other developer's credentials were read or reused.
+
+Requested approval is **$70–$85/month extra**, **$220 account budget with verified contact alerts**, and **$2 one-off AWS test allowance**. Approval has not been granted. Do not interpret an instruction to choose sensible defaults as approval of these costs.
+
 ## Completed local checks
 
 - Docker Desktop engine 29.9.2 started; no cloud infrastructure provisioned.
@@ -30,7 +38,7 @@ The final committed implementation was rerun in [validation build #2](http://loc
 
 Build #2 therefore ended **FAILURE**, not a successful full pipeline. Tool versions and `npm-audit.json` are archived in that build. The exact final Ansible test image was also built/run independently with the final tooling image; lint/syntax/check/apply/idempotence all passed again. `imran` remains an ancestor of `giri`; no history was rewritten. Documentation-only evidence commits after this tested implementation do not imply another completed Jenkins run.
 
-Automatic approval review rejected the attempted host Docker socket mount because it grants Jenkins broad host-level container authority. The controller was instead started without that mount, AWS credentials, backend files, or a smoke identity. This was not bypassed. Full Jenkins image/Ansible stages need an explicitly approved isolated Docker agent or approval of the local socket mount. Independent image checks below used direct Docker commands and exported image archives; scanners had no Docker socket.
+Automatic approval review rejected the attempted host Docker socket mount because it grants Jenkins broad host-level container authority. The controller was instead started without that mount, AWS credentials, backend files, or a smoke identity. This was not bypassed. The later AWS-only requirement supersedes the local socket option: full delivery needs approved AWS-hosted agents. Independent image checks below used direct Docker commands and exported image archives; scanners had no Docker socket.
 
 | Tool | Tested version |
 | --- | --- |

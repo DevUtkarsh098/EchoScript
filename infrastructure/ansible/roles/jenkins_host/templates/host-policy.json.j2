@@ -1,0 +1,9 @@
+{
+  "account_id": "{{ jenkins_host_account_id }}",
+  "region": "{{ jenkins_host_region }}",
+  "role": "{{ jenkins_host_role }}",
+  "approval_reference": {{ jenkins_host_approval_reference | to_json }},
+  "runtime": "docker",
+  "public_jenkins_ingress": false,
+  "application_resources_managed_by": "terraform/single-account"
+}

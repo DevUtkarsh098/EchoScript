@@ -2,6 +2,12 @@
 
 Updated: 2026-11-11. Implementation branch: `giri`, created from `imran` at `c528ca0`. Preserve that ancestry; do not force-push. The project owner reports that transcription is working. This change does not alter the transcription implementation or migrate its data.
 
+## Current hosting requirement
+
+Jenkins must run in AWS account `598391748654`, `us-west-2`. Laptop/external Jenkins hosting is retired. Review [jenkins-aws-design.md](jenkins-aws-design.md): expected additional cost **$70–$85/month**, combined account planning spend **$155–$195/month**, proposed budget **$220/month**, plus **$2** for a disposable AWS test. No chargeable provisioning is authorized yet. New infrastructure is proposed separately in `terraform/jenkins-hosting`, using the same existing backend bucket/lock with a separate state key; application delivery still uses `single-account`.
+
+The AWS design adds a guarded `jenkins_host` foundation role and SSM inventory. Its lint/syntax checks passed; AWS check/apply/idempotence, HTTPS/controller runtime setup, node authorization, backups/recovery and a real AWS pipeline run are pending cost approval and own Identity Center access. Previous local workspace tests and laptop Jenkins runs remain historical evidence only.
+
 ## Ownership and boundaries
 
 Production remains account `598391748654`, region `us-west-2`, Terraform root `infrastructure/terraform/single-account`. CloudFront/private S3 serves the frontend; ECS Express Mode/Fargate serves the API and Fargate runs the worker. Terraform owns application infrastructure. Neither Jenkins shell scripts nor Ansible create a competing AWS resource model.
@@ -41,7 +47,7 @@ Release `ACTION` defaults to `validate`; PR validation never publishes or deploy
 
 ## Jenkins identity and configuration
 
-Do not copy a developer's SSO session or configure static access keys. Each developer uses their own Identity Center assignment. The release job instead requires a Jenkins-specific OIDC issuer/approved credential broker which refreshes a short-lived JWT file outside the checkout. AWS CLI/SDK assumes each role through `AWS_WEB_IDENTITY_TOKEN_FILE`. No generic Jenkins OIDC issuer or trust has been assumed to exist.
+Do not copy a developer's SSO session or configure static access keys. Each developer uses their own Identity Center assignment. The release job supports a Jenkins-specific OIDC issuer/broker or the proposed EC2 instance-profile role-assumption path. For AWS-native hosting, set `AWS_JENKINS_CREDENTIAL_MODE=ec2-instance-profile` only on the trusted release agent: fixed root-owned profiles in `/etc/echoscript/aws/config` assume the five scoped roles for 900 seconds using EC2 metadata. `machine_profile.py` rejects SSO/static-key/source-profile fields, arbitrary profiles and wrong account/region. See [AWS CLI instance-profile role guidance](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html). No generic Jenkins OIDC issuer has been assumed to exist.
 
 An account administrator must approve and create the following roles and exact issuer/audience/subject trust. `ci/iam/render.py` renders reviewable JSON from confirmed live metadata; it does not call AWS or create infrastructure. Review the policies, attach appropriate organization boundaries, validate them with IAM Access Analyzer, and test actual read/plan/deploy permissions before describing them as operationally least privilege. Some AWS describe/register actions require `Resource: "*"`; they are action/region limited. The deploy role can update the workflow inline policy because the worker revision ARN changes; this permission requires particular review and strict source/job trust. No role has S3 DeleteObject, data-table writes, IAM role creation, or infrastructure deletion permissions.
 
@@ -62,7 +68,7 @@ An account administrator must approve and create the following roles and exact i
 | `SMOKE_AUDIO_FILE` | Approved short English spoken WAV fixture under 5 MB, mounted outside source |
 | `TOOLS_IMAGE` | Tested CI tooling image name/digest available on the isolated Docker daemon |
 
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, and `AWS_PROFILE` are rejected by this chosen web-identity implementation. Shared credential/config files and instance metadata are disabled. The token broker must enforce audience, exact subject, trusted job, branch, and short expiry; Jenkins authorization alone cannot establish this trust. Do not put a role ARN, backend file, or token choice under PR control.
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and injected `AWS_SESSION_TOKEN` are rejected. OIDC mode also rejects developer profiles and disables shared files/metadata. AWS-native mode permits only the five validated machine profiles, disables shared credential files and uses its own EC2 role; developer SSO remains prohibited. An OIDC broker, if selected, must enforce audience, exact subject, trusted job, branch and short expiry. Do not put a role ARN, backend file, credential mode or token choice under PR control.
 
 ## Backend, plan protection, and approval
 

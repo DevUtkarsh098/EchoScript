@@ -14,6 +14,15 @@ This document records the recovery, deployment, and verification changes availab
 
 ## Changes and evidence
 
+### AWS-only hosting follow-up, 2026-11-11
+
+- Applied the revised instruction that Jenkins must run in AWS, not on a laptop. Stopped the old local controller and retired its launcher files while retaining historical evidence.
+- Prepared a separate, account/region-pinned `jenkins-hosting` Terraform proposal with explicit cost/budget/email/policy preconditions, independent state key in the same existing backend, three isolated hosts and a disabled optional AWS test host. No AWS backend init, plan/apply or provisioning occurred.
+- Added a parameterized SSM inventory and guarded `jenkins_host` Ansible foundation. Lint/syntax passed, but AWS check/apply/idempotence has not run and is blocked until cost approval. Production controller/HTTPS/agent runtime and recovery testing remain pending.
+- Added EC2 instance-profile-to-job-role support, fixed root-owned 900-second machine profiles and security tests; 18 CI safety tests now pass. Static keys and developer SSO on Jenkins remain prohibited.
+- Verified public Oregon EC2 rates and recorded a reproducible cost model: $69.47 nominal / $70–$85 expected monthly CI increment; $155–$195 combined application/account estimate. Proposed account budget is $220 plus a $2 one-off AWS test allowance, neither approved yet.
+- Updated handover/status/deployment documentation to respect the owner's confirmed working transcription workflow. The former fresh-job acceptance gap is historical, not outstanding. Pipeline smoke tests remain a separate future CI requirement.
+
 ### giri CI/CD implementation, 2026-11-11
 
 - Created `giri` from `imran` at `c528ca0`, preserving history. The owner reports that the transcription workflow is working; its implementation and data were left intact.
@@ -32,18 +41,18 @@ This document records the recovery, deployment, and verification changes availab
 - Fixed audio upload signing to use the regional S3 endpoint with Signature V4 and virtual-host addressing; configured the exact CloudFront origin and required S3 CORS methods/headers. An authenticated synthetic MP3 upload succeeded.
 - Added the worker's missing `requests` dependency and pinned a compatible PyAV version (`18.1.0`) after the prior version conflicted with faster-whisper. A local PyAV decode check succeeded on the sample.
 - Ran faster-whisper in the deployed worker. DynamoDB showed `TRANSCRIBED`, and transcript, SRT, and VTT objects were stored in S3.
-- Fixed Step Functions input loss after the ECS transcription task by discarding the task result from workflow state (`ResultPath = null`), preserving `job_id` for the release-slot step. A following execution succeeded as a no-op because its job was already transcribed; test a new job to prove a full successful run.
+- Fixed Step Functions input loss after the ECS transcription task by discarding the task result from workflow state (`ResultPath = null`), preserving `job_id` for the release-slot step. That historical check used an already-transcribed job. The owner subsequently confirmed that transcription works; this is no longer an outstanding application acceptance gap.
 - Built/published immutable container images and ran Trivy gates. Secret scanning passed and the images had zero HIGH/CRITICAL findings. The worker image was assembled with the compatible PyAV wheel due to slow Docker downloads; perform a clean reproducible build from the checked-in Dockerfile as part of takeover.
 - API health returned `{"status":"ok"}`. This does not establish full end-to-end acceptance.
 
 ## Remaining checks
 
-- Submit one fresh audio job and capture proof that the same workflow execution performs inference and ends `SUCCEEDED`.
-- Download and inspect TXT, SRT, and VTT via the authenticated UI; verify unauthenticated and cross-user requests are rejected.
+- After AWS Jenkins hosting is approved/provisioned, record its fresh authenticated deployment smoke test. This is CI evidence, not a request to repeat the owner's accepted application test.
+- Preserve the working transcript/subtitle download behavior; verify CI identity isolation without changing application processing.
 - Exercise worker failure, retry, slot release, and recovery. Test representative speech and supported formats.
 - Decide whether the deployed PyAV decoder meets the original FFmpeg requirement or add and test the required FFmpeg processing step.
 - Review actual AWS costs and configure a budget alert. Current estimate is `$85–$110/month`; Terraform's `$100/month` budget has no alert recipient.
-- Jenkins and Ansible are not operational. Existing Jenkinsfiles reference missing scripts and obsolete Kubernetes paths. The Ansible sample playbook configures k3s on static hosts. The detailed implementation steps and safety constraints are in [the developer handover](../HANDOFF_FOR_NEXT_DEVELOPER.md).
+- AWS-hosted Jenkins/Ansible are not operational yet. `giri` replaced the stale deployment paths and added tested CI controls. The AWS hosting proposal is now cost-gated; no cloud Jenkins resources or disposable AWS test host have been provisioned. See [jenkins-aws-design.md](jenkins-aws-design.md).
 - Verify rollback, monitoring/alert delivery, SonarQube/ZAP if adopted, and the separate video/provider workflow.
 
 ## Repository and runtime notes

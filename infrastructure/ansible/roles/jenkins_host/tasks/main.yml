@@ -1,0 +1,82 @@
+---
+- name: Require approved AWS target and a disposable-host test before production
+  ansible.builtin.assert:
+    that:
+      - jenkins_host_approval_reference | length >= 10
+      - ansible_connection == 'amazon.aws.aws_ssm'
+      - jenkins_host_account_id == '598391748654'
+      - jenkins_host_region == 'us-west-2'
+      - ansible_distribution == 'Ubuntu'
+      - ansible_distribution_version == '24.04'
+      - jenkins_host_role in ['disposable', 'controller', 'validation', 'release']
+      - jenkins_host_role == 'disposable' or jenkins_host_disposable_checks_passed | bool
+    fail_msg: Approve the AWS target and pass disposable-host checks before configuring production Jenkins hosts.
+
+- name: Use HTTPS for Ubuntu package downloads
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list.d/ubuntu.sources
+    regexp: 'http://(?:[a-z0-9.-]+\.)?archive\.ubuntu\.com/ubuntu/?'
+    replace: https://archive.ubuntu.com/ubuntu/
+
+- name: Use HTTPS for Ubuntu security updates
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list.d/ubuntu.sources
+    regexp: 'http://security\.ubuntu\.com/ubuntu/?'
+    replace: https://security.ubuntu.com/ubuntu/
+
+- name: Install Docker and host maintenance tools from Ubuntu packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - docker.io
+      - docker-compose-v2
+      - jq
+      - python3
+      - unattended-upgrades
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Keep Docker available on the dedicated Jenkins host
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Configure Docker log rotation
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      {"log-driver":"local","log-opts":{"max-size":"10m","max-file":"3"}}
+
+- name: Create root-owned configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+  loop:
+    - /etc/echoscript
+    - /etc/echoscript/aws
+
+- name: Install non-secret host policy metadata
+  ansible.builtin.template:
+    src: host-policy.json.j2
+    dest: /etc/echoscript/host-policy.json
+    owner: root
+    group: root
+    mode: '0640'
+
+- name: Install fixed machine role profiles only on the trusted release host
+  ansible.builtin.template:
+    src: aws-config.j2
+    dest: /etc/echoscript/aws/config
+    owner: root
+    group: root
+    mode: '0644'
+  when: jenkins_host_role == 'release'

@@ -6,13 +6,15 @@ Updated: 2026-11-11
 
 ### CI/CD work on giri
 
+Current requirement: Jenkins must be hosted in this AWS account/region. The laptop harness was stopped and retired. Review [the AWS cost/access design](docs/jenkins-aws-design.md) before provisioning: expected **$70–$85/month extra**, proposed **$220 account budget**, and **$2 disposable AWS test allowance**. The new hosting Terraform, SSM inventory, host foundation and native 15-minute machine-role path are prepared/static-tested; no AWS hosting resources or AWS target tests exist yet. Cost approval and verified own access/contact email are still required.
+
 `giri` was created from `imran` at `c528ca0` for Jenkins/Ansible implementation. The project owner reports transcription is working; the code path and application data are preserved. The stale Jenkins/k3s deployment paths have been retired and replaced with the implementation in [docs/ci-cd.md](docs/ci-cd.md). Local verification and live-delivery blockers are recorded in [docs/ci-verification.md](docs/ci-verification.md). No production Jenkins machine identity or backend access has been supplied, so do not treat the new files or local tests as a completed AWS deployment.
 
 The AWS account and deployment remain the same; only the developer is changing. Continue work in AWS account `598391748654`, region `us-west-2`. Do not create another AWS account, migrate Terraform state, rebuild the platform in a different account, or use credentials from the historical suspended account.
 
 The production frontend is <https://dtdd5d335m3k2.cloudfront.net>. The FastAPI API is <https://ec-4762c5d9c1fa4c50a19bed3b76373799.ecs.us-west-2.on.aws>. Cognito sign-in was confirmed in the browser. A synthetic MP3 uploaded successfully and faster-whisper generated transcript, SRT, and VTT objects in the private output bucket. See [the deployment change log](docs/developer-handover-changes.md) for the exact work and evidence.
 
-The application is deployed, but one clean end-to-end run after the latest workflow fix is still required: create a *new* job, verify that the same execution both transcribes it and ends `SUCCEEDED`, then download and inspect all three output formats through the web app. A transcription succeeded before the workflow cleanup fix; after the fix, a retry of that already-transcribed job succeeded as a no-op. Do not describe that as a fresh full-pipeline pass.
+The project owner has confirmed that the transcription workflow is working. The earlier fresh-job acceptance gap is historical and is not an outstanding application blocker. Preserve the working service and its data. A future authenticated Jenkins deployment smoke test is separate CI evidence and must not be confused with the owner's application acceptance.
 
 ## Account access and safety
 
@@ -49,8 +51,8 @@ The frontend and API URLs and the approved AWS account are also recorded in [doc
 
 ### Do next
 
-1. Submit a fresh small recording through the public UI. Record the job ID, timestamps, HTTP results, worker logs, DynamoDB final status, Step Functions final status, and S3 output keys. Both the transcription and the same workflow execution must succeed.
-2. Download TXT, SRT, and VTT through the authenticated UI/API and inspect their actual contents.
+1. After AWS Jenkins hosting/cost approval, run the pipeline's fresh authenticated transcription smoke test and record its job/workflow/output evidence. This verifies CI deployment, not an unresolved owner acceptance gap.
+2. Preserve the owner-tested upload and TXT/SRT/VTT download behavior; do not alter application processing during Jenkins setup.
 3. Verify unauthenticated requests are rejected and cross-user job, audio, and output access is denied.
 4. Exercise an intentional worker failure, the supported retry path, and recovery after worker restart. Confirm failed jobs do not retain a worker-slot lease.
 5. Test representative real speech and supported audio formats. The verified sample was synthetic and does not establish transcription quality on ordinary recordings.
@@ -97,4 +99,4 @@ For the approved scope, replace the static k3s examples with parameterized inven
 
 ## Release and completion criteria
 
-Do not call the project fully accepted until the fresh authenticated job reaches `SUCCEEDED` in one run, stores all three real outputs, the user downloads and verifies them, and ownership-denial checks pass. Also report Jenkins and Ansible separately as implemented/tested or still pending, include live scan/test evidence, actual AWS cost review, alerting status, rollback instructions, and all remaining video/provider limitations. The video recap/provider flow is separate from the verified transcription path and has not been acceptance-tested in this deployment.
+The owner has accepted the working transcription path. Report AWS-hosted Jenkins and Ansible separately: hosting must be cost-approved before provisioning, Ansible must pass on a disposable AWS target before production configuration, and real AWS pipeline/plan/apply/smoke/rollback evidence is required before calling CI delivery operational. Include cost/budget approval, verified alert recipient, scan/test evidence and recovery instructions. The separate video/provider limitations remain outside the working transcription acceptance.

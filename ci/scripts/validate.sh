@@ -26,10 +26,13 @@ case "${1:?validation stage required}" in
     docker run --rm "echoscript-worker-tests:$TAG"
     ;;
   terraform)
-    terraform fmt -check -recursive "$TF_DIR"
     # PR checks NEVER initialize the production backend or receive AWS credentials.
-    TF_DATA_DIR="$ROOT/ci-private/tf-validation" terraform -chdir="$TF_DIR" init -backend=false -input=false -lockfile=readonly
-    TF_DATA_DIR="$ROOT/ci-private/tf-validation" terraform -chdir="$TF_DIR" validate
+    for directory in "$TF_DIR" infrastructure/terraform/jenkins-hosting; do
+      terraform fmt -check -recursive "$directory"
+      export TF_DATA_DIR="$ROOT/ci-private/tf-validation/$(basename "$directory")"
+      terraform -chdir="$directory" init -backend=false -input=false -lockfile=readonly
+      terraform -chdir="$directory" validate
+    done
     ;;
   ansible)
     # No Docker socket, AWS files, SSH keys, or production inventory in this target.

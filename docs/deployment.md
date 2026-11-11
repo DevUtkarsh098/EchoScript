@@ -17,7 +17,7 @@ CloudFront serves a React frontend from private S3. Cognito provides browser sig
 
 ## Current verification
 
-The AWS environment is provisioned and live. Cognito sign-in was confirmed. An authenticated upload of a synthetic MP3 reached S3, and faster-whisper generated transcript, SRT, and VTT objects; DynamoDB recorded the job as `TRANSCRIBED`. A Step Functions state-preservation defect was fixed and deployed. A retry of that already-transcribed job then finished `SUCCEEDED` as a no-op. A new job that both transcribes and completes the workflow in the same execution is still required for full pipeline acceptance.
+The AWS environment is provisioned and live. The owner has confirmed that transcription is working. Earlier synthetic-upload/transcription checks and the workflow state-preservation fix remain historical evidence; the former fresh-job acceptance gap is not outstanding. Preserve this application behavior. Future Jenkins deployment smoke tests establish CI delivery evidence separately.
 
 Production endpoints and deployment evidence, including the remaining acceptance checks, are in [the developer handover](../HANDOFF_FOR_NEXT_DEVELOPER.md) and [the change log](developer-handover-changes.md).
 

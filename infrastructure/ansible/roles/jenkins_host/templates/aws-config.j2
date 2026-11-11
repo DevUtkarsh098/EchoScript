@@ -1,0 +1,10 @@
+# AWS-managed instance-profile credentials -> short-lived job-specific roles.
+# No static credentials or SSO sessions belong on this host.
+{% for role in ['publish', 'plan', 'deploy', 'frontend', 'smoke'] %}
+[profile jenkins-{{ role }}]
+role_arn = arn:aws:iam::598391748654:role/echoscript-jenkins-{{ role }}
+credential_source = Ec2InstanceMetadata
+region = us-west-2
+duration_seconds = 900
+
+{% endfor %}

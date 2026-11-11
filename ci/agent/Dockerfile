@@ -21,6 +21,8 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws
 COPY ci/agent/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
+COPY infrastructure/ansible/requirements.yml /tmp/ansible-collections.yml
+RUN ansible-galaxy collection install -r /tmp/ansible-collections.yml -p /usr/share/ansible/collections
 ENV ANSIBLE_LOCAL_TEMP=/tmp/ansible-local
 WORKDIR /workspace
 CMD ["bash"]

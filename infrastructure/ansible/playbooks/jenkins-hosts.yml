@@ -1,0 +1,7 @@
+---
+- name: Configure an explicitly approved AWS Jenkins host foundation
+  hosts: jenkins_disposable:jenkins_controller:jenkins_agents
+  become: true
+  gather_facts: true
+  roles:
+    - role: jenkins_host

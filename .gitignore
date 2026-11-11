@@ -19,6 +19,7 @@ backend.hcl
 .terraform.*
 !infrastructure/terraform/single-account/.terraform.lock.hcl
 !infrastructure/terraform/bootstrap-state/.terraform.lock.hcl
+!infrastructure/terraform/jenkins-hosting/.terraform.lock.hcl
 .pytest-tmp-*/
 *.core
 .active-color

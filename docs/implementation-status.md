@@ -9,14 +9,16 @@ Updated: 2026-11-11. This page distinguishes code present in the repository from
 - FastAPI ingest API with Cognito JWT validation and owner-scoped job access.
 - DynamoDB job records, SQS/Lambda/Step Functions orchestration, and Fargate faster-whisper worker.
 - Synthetic audio was transcribed. TXT, SRT, and VTT output objects were written to S3 and the job status became `TRANSCRIBED`.
-- Fixed workflow input preservation after the worker task. A retry of the already-transcribed job completed, but that retry skipped inference; a fresh end-to-end success is still needed.
+- Fixed workflow input preservation after the worker task. The owner subsequently confirmed that transcription is working; the earlier acceptance gap is historical, not outstanding.
 - AWS application resources are provisioned in account `598391748654`, region `us-west-2`, using `infrastructure/terraform/single-account`.
 - Docker image publishing gates were run: Trivy source secret scan passed and published API/worker images had zero HIGH/CRITICAL findings. API health returned `{"status":"ok"}`.
 
 ## Not yet accepted or verified
 
-- A fresh job whose same Step Functions execution performs transcription and ends `SUCCEEDED`.
-- Download and content inspection of TXT/SRT/VTT in the authenticated web UI.
+- AWS-only Jenkins hosting proposal is prepared and statically validated in `terraform/jenkins-hosting`; cost approval is pending. The existing laptop harness was stopped/retired. Expected additional cost is $70–$85/month with controlled agent hours; combined planning spend $155–$195/month requires approval of a revised account budget. See [the proposal](jenkins-aws-design.md).
+- AWS host foundation role, SSM inventory and 15-minute native machine-profile guards are implemented; lint/syntax and 18 CI safety tests passed. Disposable AWS host check/apply/idempotence, controller/HTTPS/agent runtime configuration, IAM live verification, backups/recovery and a real AWS Jenkins run remain unexecuted.
+
+- An authenticated CI deployment smoke test on the future AWS-hosted Jenkins installation; this is separate from the owner's confirmed application acceptance.
 - Cross-user and unauthenticated access denial, worker failure/retry/recovery, and representative real-speech quality.
 - Whether PyAV decoding satisfies the original handover's separate FFmpeg requirement; the deployed worker uses PyAV and does not install a separate FFmpeg executable.
 - Production Jenkins delivery: the `giri` implementation replaces stale Kubernetes/account layouts with current-architecture validation and approval-gated immutable releases. Actual local verification is in [ci-verification.md](ci-verification.md); AWS identity/backend configuration, production plan/apply, authenticated CI smoke, and a live rollback remain pending.
@@ -27,7 +29,7 @@ Updated: 2026-11-11. This page distinguishes code present in the repository from
 
 ## Next implementation priorities
 
-1. Complete the fresh authenticated transcription and output-download acceptance listed in the handover.
+1. Obtain approval for the AWS-only Jenkins cost/access design in [jenkins-aws-design.md](jenkins-aws-design.md) before provisioning any chargeable resources. Preserve the owner-tested transcription service.
 2. Configure approved Jenkins jobs/agents, exact OIDC trust and scoped roles, confirmed existing backend metadata, protected plan decryption/approval, and an external test identity. Run and record real production release/rollback results using [ci-cd.md](ci-cd.md).
 3. Decide whether the approved production agent benefits from the tested Ansible workspace role; otherwise keep its toolchain in the Dockerfile. Do not provision chargeable agents without approval.
 4. Verify access isolation and failure recovery, then reconcile billing, alerting, FFmpeg expectations, and the separate video scope.

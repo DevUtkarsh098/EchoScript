@@ -1,0 +1,6 @@
+---
+jenkins_host_approval_reference: ''
+jenkins_host_disposable_checks_passed: false
+jenkins_host_role: disposable
+jenkins_host_region: us-west-2
+jenkins_host_account_id: '598391748654'
