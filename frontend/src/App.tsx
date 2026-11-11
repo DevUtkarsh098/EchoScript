@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, Bell, BookOpen, Bot, Check, CheckCircle2, ChevronRight, CircleAlert, Clock3, CloudUpload,
+  ArrowLeft, Bell, BookOpen, Bot, Check, CheckCircle2, ChevronRight, CircleAlert, CloudUpload,
   Copy, Download, FileAudio, FileText, Film, FolderOpen, Gauge, Grid2X2, Headphones, Home, Languages,
   List, LoaderCircle, LogOut, Menu, Mic2, Moon, MoreHorizontal, Play, Plus, RefreshCw, Search, Settings,
-  Sparkles, UploadCloud, User, Video, WandSparkles, X, Zap
+  Sparkles, UploadCloud, User, Video, WandSparkles, Zap
 } from 'lucide-react'
 import { api, downloadAsset, getAsset, uploadFile } from './api'
-import type { Job, JobStatus } from './types'
+import type { Job } from './types'
 import { isMockAuthEnabled } from './auth-config'
 
 const mockAuth = isMockAuthEnabled(import.meta.env.VITE_APP_ENV, import.meta.env.VITE_MOCK_AUTH)
@@ -209,7 +209,7 @@ function Library() {
   const [tab, setTab] = useState('ALL')
   const [grid, setGrid] = useState(true)
   const files = jobs.flatMap(job => [{ type: 'TRANSCRIPT', ext: 'TXT', path: job.outputs.transcript, job }, { type: 'SUBTITLE', ext: 'SRT', path: job.outputs.srt, job }, { type: 'SUBTITLE', ext: 'VTT', path: job.outputs.vtt, job }, { type: 'VIDEO', ext: 'MP4', path: job.outputs.video, job }]).filter(item => item.path && (tab === 'ALL' || item.type === tab))
-  return <Shell><div className="page"><PageHead title="My Library" subtitle="Every transcript, subtitle, and recap—organized around its source audio." /><section className="panel library-panel"><div className="job-toolbar"><div className="tabs">{[['ALL', 'All files'], ['TRANSCRIPT', 'Transcripts'], ['SUBTITLE', 'Subtitles'], ['VIDEO', 'AI recap videos']].map(([value, label]) => <button className={tab === value ? 'active' : ''} onClick={() => setTab(value)} key={value}>{label}</button>)}</div><div className="view-toggle"><button className={grid ? 'active' : ''} onClick={() => setGrid(true)}><Grid2X2 /></button><button className={!grid ? 'active' : ''} onClick={() => setGrid(false)}><List /></button></div></div>{files.length ? <div className={grid ? 'file-grid' : 'file-list'}>{files.map((file, index) => <article className="file-card" key={`${file.job.id}-${file.ext}`}><div className={`file-preview ${file.ext === 'MP4' ? 'video' : ''}`}>{file.ext === 'MP4' ? <Film /> : <FileText />}<span>{file.ext}</span></div><div className="file-meta"><b>{file.job.filename.replace(/\.[^.]+$/, '')}</b><span>{file.type.toLowerCase()} · {new Date(file.job.updated_at).toLocaleDateString()}</span></div><DownloadFileButton path={file.path} className="icon-button" title="Download"><Download /></DownloadFileButton></article>)}</div> : <Empty title="Your library is waiting" body="Completed jobs will place transcripts, subtitles, and videos here automatically." />}</section></div></Shell>
+  return <Shell><div className="page"><PageHead title="My Library" subtitle="Every transcript, subtitle, and recap—organized around its source audio." /><section className="panel library-panel"><div className="job-toolbar"><div className="tabs">{[['ALL', 'All files'], ['TRANSCRIPT', 'Transcripts'], ['SUBTITLE', 'Subtitles'], ['VIDEO', 'AI recap videos']].map(([value, label]) => <button className={tab === value ? 'active' : ''} onClick={() => setTab(value)} key={value}>{label}</button>)}</div><div className="view-toggle"><button className={grid ? 'active' : ''} onClick={() => setGrid(true)}><Grid2X2 /></button><button className={!grid ? 'active' : ''} onClick={() => setGrid(false)}><List /></button></div></div>{files.length ? <div className={grid ? 'file-grid' : 'file-list'}>{files.map(file => <article className="file-card" key={`${file.job.id}-${file.ext}`}><div className={`file-preview ${file.ext === 'MP4' ? 'video' : ''}`}>{file.ext === 'MP4' ? <Film /> : <FileText />}<span>{file.ext}</span></div><div className="file-meta"><b>{file.job.filename.replace(/\.[^.]+$/, '')}</b><span>{file.type.toLowerCase()} · {new Date(file.job.updated_at).toLocaleDateString()}</span></div><DownloadFileButton path={file.path} className="icon-button" title="Download"><Download /></DownloadFileButton></article>)}</div> : <Empty title="Your library is waiting" body="Completed jobs will place transcripts, subtitles, and videos here automatically." />}</section></div></Shell>
 }
 
 function SettingsPage() {

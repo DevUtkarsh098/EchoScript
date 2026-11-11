@@ -14,6 +14,11 @@ This document records the recovery, deployment, and verification changes availab
 
 ## Changes and evidence
 
+### Local branch verification, 2026-11-12
+
+- Built API, worker and frontend images and started a separate loopback-only local Compose stack with isolated test data. Demo upload/start/TXT-SRT-VTT/audio downloads and invalid-upload rejection passed. All 34 automated tests passed; Terraform backend-free checks and disposable local Ansible idempotence also passed.
+- Added missing ESLint configuration and removed unused imports/parameter; frontend build, tests and lint passed (two fast-refresh warnings). Optional local recap rendering failed due to the API image's absent `ffmpeg`; real speech inference and browser interaction were not verified. No AWS deployment or application-data changes occurred. Full results: [local-verification.md](local-verification.md).
+
 ### Cost approval follow-up, 2026-11-11
 
 - Owner approved the proposed $70–$85/month Jenkins hosting increment, $220/month account budget and $2 disposable AWS test with “cost approved do that”; reference `owner-chat-2026-11-11-cost-approved`. Updated the cost model and status; no further cost confirmation is required within this scope.

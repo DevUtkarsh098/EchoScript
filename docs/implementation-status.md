@@ -2,6 +2,8 @@
 
 Updated: 2026-11-11. This page distinguishes code present in the repository from behavior verified in the deployed AWS environment. See [the developer handover](../HANDOFF_FOR_NEXT_DEVELOPER.md) for takeover instructions and acceptance criteria.
 
+Local follow-up, 2026-11-12: built and ran `giri` in Docker; frontend/API demo upload and downloads passed, as did 34 automated tests (18 CI, 10 API, 3 frontend, 2 worker, 1 summarizer). Fixed the missing frontend lint configuration and unused imports. Optional local recap rendering failed because the API image lacks `ffmpeg`; real speech inference was not tested. See [local-verification.md](local-verification.md) for scope and running-service details.
+
 ## Implemented and verified
 
 - React/TypeScript frontend with Cognito sign-in; sign-in was completed in the browser.
