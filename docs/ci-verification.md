@@ -17,6 +17,19 @@ Date: 2026-11-11. Branch `giri`, based on `imran` commit `c528ca0`. This record 
 
 A real password-protected local Jenkins 2.580.2 controller ran [validation build #1](http://localhost:8088/job/echoscript-validation/1/) from source commit `a047a4d725ec13f00f8c2cdb6241398799d475d5`. Tool versions, the source commit and stage output are archived there. Source-secret scanning, all 11 CI tests present at that commit, frontend production build, Terraform fmt and validation passed. The run then ended **FAILURE at the API image stage** because no Docker daemon/socket was provided. Later working-tree checks added IAM/encryption/decoder tests and dependency remediation, as recorded above; those are separate evidence from build #1.
 
+The final committed implementation was rerun in [validation build #2](http://localhost:8088/job/echoscript-validation/2/) at commit `c6700974f547bd22b1fb9e0cf763f3016af67da9`. Its actual Jenkins stage statuses were:
+
+| Stage | Result |
+| --- | --- |
+| Tool versions (including Buildx) | SUCCESS |
+| Secret scan and all 15 CI regression tests | SUCCESS |
+| Frontend production build, 3 auth tests, HIGH/CRITICAL npm audit gate | SUCCESS |
+| Terraform fmt / backend-free init / validate | SUCCESS |
+| API image and tests | FAILED: Docker daemon unavailable |
+| Remaining worker/Ansible/image scan stages | Not reached in Jenkins; independent evidence is listed above |
+
+Build #2 therefore ended **FAILURE**, not a successful full pipeline. Tool versions and `npm-audit.json` are archived in that build. The exact final Ansible test image was also built/run independently with the final tooling image; lint/syntax/check/apply/idempotence all passed again. `imran` remains an ancestor of `giri`; no history was rewritten. Documentation-only evidence commits after this tested implementation do not imply another completed Jenkins run.
+
 Automatic approval review rejected the attempted host Docker socket mount because it grants Jenkins broad host-level container authority. The controller was instead started without that mount, AWS credentials, backend files, or a smoke identity. This was not bypassed. Full Jenkins image/Ansible stages need an explicitly approved isolated Docker agent or approval of the local socket mount. Independent image checks below used direct Docker commands and exported image archives; scanners had no Docker socket.
 
 | Tool | Tested version |
