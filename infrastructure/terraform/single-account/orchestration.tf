@@ -272,6 +272,7 @@ resource "aws_sfn_state_machine" "transcription" {
             }]
           }
         }
+        ResultPath = null
         Retry = [{
           ErrorEquals     = ["States.TaskFailed", "ECS.ServiceException", "ECS.AmazonECSException"]
           IntervalSeconds = 10
