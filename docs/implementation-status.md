@@ -37,6 +37,7 @@ This status describes the GitHub `main` source at baseline commit `9164e5d7a7469
 - On 2026-11-11, Docker built the API and worker images for Linux AMD64 using pinned Amazon Linux 2023 release `2023.12.20261109`. Trivy source-secret scanning passed; both images passed the HIGH/CRITICAL vulnerability gate with zero findings. Immutable tag `81092db` was pushed to ECR in account `598391748654`, region `us-west-2`.
 - Terraform validation passed. The reviewed plan showed 75 additions, 0 changes, and 0 deletions; apply completed with 75 resources added. The deployed frontend returned HTTP 200. The ECS API task and ALB target are healthy, and `/ready` returned `200` through the active ALB.
 - The frontend production build completed and the assets were synced to the private S3 bucket; CloudFront invalidation was requested. The `$100/month` AWS Budget has no email notification recipient configured.
+- A Cognito callback reload loop was found during hosted sign-in: the callback discarded its in-memory access token by forcing a full page reload, which restarted OAuth. Frontend commit `c310b6b` now uses React Router navigation after token exchange. The production build passed, the updated bundle is live, and the CloudFront invalidation completed. The user must retry sign-in; completing the flow with their Cognito account has not yet been confirmed.
 
 ## External verification still required
 

@@ -2,7 +2,7 @@
 
 This is the active single-account deployment path for the new AWS account in `us-west-2`. The previous three-account/k3s procedure is retained in Git history and handover notes for context; it is not the selected deployment. See [the architecture and cost proposal](deployment-proposal.md) for the approved design and assumptions.
 
-**Core deployment provisioned on 2026-11-11** in account `598391748654`, region `us-west-2`, from commit `81092db`. Terraform created 75 resources. The React frontend is published at <https://dtdd5d335m3k2.cloudfront.net>; the API is at <https://ec-4762c5d9c1fa4c50a19bed3b76373799.ecs.us-west-2.on.aws>. The API `/ready` endpoint returned `200`, its ECS task and ALB target are healthy, and the frontend returned `200`. Authenticated real-audio acceptance, cross-user authorization, and TXT/SRT/VTT download checks remain outstanding, so the deployment is provisioned but not yet end-to-end accepted.
+**Core deployment provisioned on 2026-11-11** in account `598391748654`, region `us-west-2`. Terraform created 75 resources and the API/worker images use tag `81092db`. The React frontend is published at <https://dtdd5d335m3k2.cloudfront.net>; the API is at <https://ec-4762c5d9c1fa4c50a19bed3b76373799.ecs.us-west-2.on.aws>. The API `/ready` endpoint returned `200`, its ECS task and ALB target are healthy, and the frontend returned `200`. A Cognito callback reload loop was fixed in frontend commit `c310b6b`; the updated bundle is live and CloudFront invalidation completed. Retry sign-in with a Cognito user account. Authenticated real-audio acceptance, cross-user authorization, and TXT/SRT/VTT download checks remain outstanding, so the deployment is provisioned but not yet end-to-end accepted.
 
 ## Components
 
