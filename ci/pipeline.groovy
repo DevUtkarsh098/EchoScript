@@ -2,9 +2,9 @@ def validate() {
     stage('Tool versions') { sh 'bash ci/scripts/validate.sh tools > ci-artifacts/tool-versions.txt' }
     stage('Secret scan and CI regression tests') { sh 'bash ci/scripts/validate.sh secrets' }
     stage('Frontend build') { sh 'bash ci/scripts/validate.sh frontend' }
+    stage('Terraform fmt and validate') { sh 'bash ci/scripts/validate.sh terraform' }
     stage('API image and tests') { sh 'bash ci/scripts/validate.sh api' }
     stage('Worker image and tests') { sh 'bash ci/scripts/validate.sh worker' }
-    stage('Terraform fmt and validate') { sh 'bash ci/scripts/validate.sh terraform' }
     stage('Ansible disposable target') { sh 'bash ci/scripts/validate.sh ansible' }
     stage('Docker images and Trivy gates') { sh 'bash ci/scripts/validate.sh images' }
 }

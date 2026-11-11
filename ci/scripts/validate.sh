@@ -8,7 +8,7 @@ TOOLS_IMAGE="${TOOLS_IMAGE:-echoscript-ci-tools:local}"
 TF_DIR=infrastructure/terraform/single-account
 case "${1:?validation stage required}" in
   tools)
-    git --version; docker version; node --version; npm --version; python3 --version
+    git --version; docker --version; node --version; npm --version; python3 --version
     terraform version; trivy --version; aws --version; ansible --version; ansible-lint --version
     ;;
   frontend)
