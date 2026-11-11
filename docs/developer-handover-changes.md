@@ -14,6 +14,16 @@ This document records the recovery, deployment, and verification changes availab
 
 ## Changes and evidence
 
+### giri CI/CD implementation, 2026-11-11
+
+- Created `giri` from `imran` at `c528ca0`, preserving history. The owner reports that the transcription workflow is working; its implementation and data were left intact.
+- Replaced obsolete Jenkins delivery with isolated PR validation and a separate OIDC-only, approval-gated ECS/Fargate release job. Added saved-plan scope/checksum/encryption guards, immutable ECR publication, frontend release capsules, and a fresh authenticated smoke script. No AWS modification or backend initialization was performed during local implementation.
+- Retired the stale infra/runtime jobs, Kubernetes selector-switch scripts, k3s playbook, and static production inventory. Added Docker tooling and a local-only reusable Ansible workspace role.
+- Docker toolchain build and Ansible lint/syntax/check/apply/idempotence passed. CI safety tests exercise backend mismatch rejection, data-resource plan rejection, secret-log suppression, unsafe bundle rejection, and the actual frontend rollback script against local test doubles.
+- Full evidence, Jenkins run status, and production configuration blockers are recorded in [ci-verification.md](ci-verification.md); operational instructions and IAM review requirements are in [ci-cd.md](ci-cd.md).
+
+### Prior deployment evidence from imran
+
 - Recovered the single-account AWS deployment path and applied infrastructure in the same account and region. The infrastructure plan applied 75 resources with no changes or deletions at that point.
 - Fixed the Cognito callback navigation loop; updated frontend assets were published and the CloudFront invalidation completed. The user subsequently confirmed successful sign-in.
 - Fixed audio upload signing to use the regional S3 endpoint with Signature V4 and virtual-host addressing; configured the exact CloudFront origin and required S3 CORS methods/headers. An authenticated synthetic MP3 upload succeeded.

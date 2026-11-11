@@ -29,4 +29,4 @@ Do not run `terraform destroy`, delete user data, recreate/migrate the existing 
 
 ## Jenkins and Ansible status
 
-Neither Jenkins nor Ansible is verified as operational. Existing Jenkinsfiles point to missing scripts and an obsolete Kubernetes/account layout; the existing Ansible site playbook installs k3s on sample hosts. Follow the implementation plans in [the developer handover](../HANDOFF_FOR_NEXT_DEVELOPER.md) before running either against AWS.
+On `giri`, the obsolete Jenkins/k3s paths have been retired. The replacement pipeline uses the active single-account root, exact scanned immutable images, OIDC-only machine identities, an encrypted saved plan and explicit approval, preserved frontend bundles, and authenticated smoke checks. The Ansible role configures only a disposable local agent workspace and passed lint/syntax/check/idempotence tests. Production Jenkins access and deployment/rollback results remain unverified. Use [the CI/CD runbook](ci-cd.md) and [recorded evidence](ci-verification.md); do not run historical deployment paths.

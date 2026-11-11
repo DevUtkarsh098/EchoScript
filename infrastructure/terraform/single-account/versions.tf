@@ -14,7 +14,8 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
+  region              = var.region
+  allowed_account_ids = ["598391748654"]
   default_tags {
     tags = {
       Project     = "echoscript"

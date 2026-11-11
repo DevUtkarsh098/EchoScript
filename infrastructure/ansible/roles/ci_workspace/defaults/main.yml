@@ -1,0 +1,4 @@
+---
+ci_workspace_root: /opt/echoscript-agent
+ci_workspace_owner: jenkins
+ci_workspace_group: jenkins

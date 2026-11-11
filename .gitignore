@@ -22,4 +22,8 @@ backend.hcl
 .pytest-tmp-*/
 *.core
 .active-color
+.local-run/
+.ruff_cache/
+/ci-artifacts/
+/ci-private/
 /infrastructure/terraform/single-account/build/*.zip

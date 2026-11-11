@@ -1,0 +1,11 @@
+// Multibranch/PR job: isolated Docker agent with NO AWS access or production mounts.
+node('echoscript-validation') {
+    checkout scm
+    def flow = load 'ci/pipeline.groovy'
+    try {
+        sh 'mkdir -p ci-artifacts; git rev-parse HEAD > ci-artifacts/source-commit.txt'
+        flow.validate()
+    } finally {
+        flow.archiveEvidence()
+    }
+}

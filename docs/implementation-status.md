@@ -19,8 +19,8 @@ Updated: 2026-11-11. This page distinguishes code present in the repository from
 - Download and content inspection of TXT/SRT/VTT in the authenticated web UI.
 - Cross-user and unauthenticated access denial, worker failure/retry/recovery, and representative real-speech quality.
 - Whether PyAV decoding satisfies the original handover's separate FFmpeg requirement; the deployed worker uses PyAV and does not install a separate FFmpeg executable.
-- Jenkins: repository files exist but are stale, reference missing scripts, and target Kubernetes/old account layouts. No working Jenkins deployment pipeline or run has been verified.
-- Ansible: sample playbooks exist but install k3s on static example hosts. They are not suitable for the deployed ECS architecture and have not been verified.
+- Production Jenkins delivery: the `giri` implementation replaces stale Kubernetes/account layouts with current-architecture validation and approval-gated immutable releases. Actual local verification is in [ci-verification.md](ci-verification.md); AWS identity/backend configuration, production plan/apply, authenticated CI smoke, and a live rollback remain pending.
+- Production Ansible target: the local-only agent workspace role passed lint, syntax, check, apply and idempotence in Docker. No production agent was approved/provisioned; Ansible does not manage ECS or any Terraform-owned AWS resources. The k3s/static-host examples were retired.
 - SonarQube quality gate, OWASP ZAP scan, complete monitoring/alert delivery, and production rollback exercise.
 - Actual AWS billing review and budget email alert. A `$100/month` budget exists without an email; current estimate is `$85–$110/month`.
 - Video/provider workflow acceptance.
@@ -28,6 +28,6 @@ Updated: 2026-11-11. This page distinguishes code present in the repository from
 ## Next implementation priorities
 
 1. Complete the fresh authenticated transcription and output-download acceptance listed in the handover.
-2. Redesign Jenkins around the existing single-account Terraform root, immutable ECR tags, short-lived scoped AWS access, an approval-gated plan/apply, smoke checks, and rollback.
-3. Decide and document Ansible's target. The deployed application has no long-lived EC2 hosts; do not provision chargeable agents without approval. Remove/retire stale k3s examples from the production path.
+2. Configure approved Jenkins jobs/agents, exact OIDC trust and scoped roles, confirmed existing backend metadata, protected plan decryption/approval, and an external test identity. Run and record real production release/rollback results using [ci-cd.md](ci-cd.md).
+3. Decide whether the approved production agent benefits from the tested Ansible workspace role; otherwise keep its toolchain in the Dockerfile. Do not provision chargeable agents without approval.
 4. Verify access isolation and failure recovery, then reconcile billing, alerting, FFmpeg expectations, and the separate video scope.

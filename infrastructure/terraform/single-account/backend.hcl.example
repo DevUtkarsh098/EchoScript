@@ -1,5 +1,5 @@
-bucket         = "REPLACE_WITH_NEW_ACCOUNT_TERRAFORM_STATE_BUCKET"
+bucket         = "CONFIRM_EXISTING_STATE_BUCKET_WITH_ADMINISTRATOR"
 key            = "echoscript/prod/terraform.tfstate"
 region         = "us-west-2"
 encrypt        = true
-dynamodb_table = "REPLACE_WITH_NEW_ACCOUNT_TERRAFORM_LOCK_TABLE"
+dynamodb_table = "CONFIRM_EXISTING_LOCK_TABLE_WITH_ADMINISTRATOR"

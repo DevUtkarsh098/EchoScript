@@ -2,6 +2,10 @@ variable "region" {
   type        = string
   description = "AWS region for the EchoScript deployment."
   default     = "us-west-2"
+  validation {
+    condition     = var.region == "us-west-2"
+    error_message = "The existing deployment must remain in us-west-2."
+  }
 }
 
 variable "environment" {

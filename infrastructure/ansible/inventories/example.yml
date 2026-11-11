@@ -1,9 +1,0 @@
-all:
-  children:
-    control:
-      hosts: {k3s-server: {ansible_host: 10.20.11.10}}
-    workers:
-      hosts: {worker-1: {ansible_host: 10.10.11.10}}
-    apps:
-      hosts: {app-1: {ansible_host: 10.30.11.10}}
-

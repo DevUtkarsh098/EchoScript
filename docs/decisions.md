@@ -7,3 +7,13 @@
 5. Blue/green colors are labels behind stable Services, enabling an atomic selector switch and quick rollback.
 6. S3 metadata is acceptable for the demonstration but DynamoDB is the migration path for concurrency and listing scale.
 
+## Current CI/CD decisions (giri, 2026-11-11)
+
+The numbered decisions above describe the historical design; production now uses the single-account ECS/Fargate architecture documented in [deployment.md](deployment.md). Kubernetes selector switching and multi-account roots are not current deployment mechanisms.
+
+- Separate untrusted PR validation from identity-bearing, reviewed release jobs. Use a Jenkins-specific OIDC/broker JWT, never developer SSO or static AWS keys. IAM policy rendering does not provision roles; exact trust and live permissions require administrator review.
+- Terraform exclusively owns AWS application resources. Routine release plans permit only the API, worker revision, workflow, and worker-policy updates; unrelated drift or data-resource changes fail closed. Archive encrypted saved plans because plaintext plans can contain sensitive state, and apply only after explicit named approval and checksum verification.
+- Use the existing frontend S3/CloudFront mechanism with immutable release capsules and index-last publication. Preserve old hashed assets, user objects, S3 versions, and DynamoDB data; rollback uses existing images and the exact prior bundle through another approved plan.
+- Bake tools into Docker. Restrict Ansible to a local agent workspace role tested on a disposable container; no application hosts exist to configure and no chargeable agent is implicitly approved.
+- Maintain evidence separately from implementation. A local Jenkins run, mock rollback, owner-reported application success, and actual production plan/apply/smoke are distinct results. See [ci-verification.md](ci-verification.md).
+

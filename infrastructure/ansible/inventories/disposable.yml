@@ -1,0 +1,12 @@
+---
+all:
+  children:
+    build_agents:
+      hosts:
+        disposable:
+          ansible_connection: local
+          ansible_python_interpreter: /usr/local/bin/python
+      vars:
+        ci_workspace_root: /opt/echoscript-agent
+        ci_workspace_owner: jenkins
+        ci_workspace_group: jenkins

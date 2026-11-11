@@ -1,0 +1,29 @@
+---
+- name: Require a local container target and an explicit absolute workspace path
+  ansible.builtin.assert:
+    that:
+      - ansible_connection == 'local'
+      - ci_workspace_root is match('^/opt/[a-zA-Z0-9_/-]+$')
+      - "'..' not in ci_workspace_root"
+    fail_msg: This role configures only an approved local Docker agent under /opt.
+
+- name: Create isolated workspace and cache directories
+  ansible.builtin.file:
+    path: "{{ ci_workspace_root }}/{{ item }}"
+    state: directory
+    owner: "{{ ci_workspace_owner }}"
+    group: "{{ ci_workspace_group }}"
+    mode: '0750'
+  loop:
+    - ''
+    - workspaces
+    - cache
+    - config
+
+- name: Install non-secret workspace defaults
+  ansible.builtin.template:
+    src: workspace.env.j2
+    dest: "{{ ci_workspace_root }}/config/workspace.env"
+    owner: "{{ ci_workspace_owner }}"
+    group: "{{ ci_workspace_group }}"
+    mode: '0640'

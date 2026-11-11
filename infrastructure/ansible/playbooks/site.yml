@@ -1,31 +1,6 @@
-- name: Harden and prepare all k3s nodes
-  hosts: all
-  become: true
-  tasks:
-    - name: Install required packages
-      ansible.builtin.package:
-        name: [curl, jq]
-        state: present
-    - name: Enable time synchronization
-      ansible.builtin.service:
-        name: chronyd
-        enabled: true
-        state: started
-
-- name: Install k3s control plane
-  hosts: control
-  become: true
-  tasks:
-    - name: Install server
-      ansible.builtin.shell: curl -sfL https://get.k3s.io | sh -s - server --node-label role=control --disable servicelb
-      args: {creates: /usr/local/bin/k3s}
-
-- name: Install static application agents
-  hosts: apps
-  become: true
-  tasks:
-    - name: Install application agent
-      ansible.builtin.shell: curl -sfL https://get.k3s.io | K3S_URL={{ k3s_url }} K3S_TOKEN={{ k3s_token }} sh -s - agent --node-label role=app
-      args: {creates: /usr/local/bin/k3s-agent}
-      no_log: true
-
+---
+- name: Configure an explicitly selected local build-agent workspace
+  hosts: build_agents
+  gather_facts: false
+  roles:
+    - role: ci_workspace

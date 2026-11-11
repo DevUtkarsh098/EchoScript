@@ -4,6 +4,10 @@ Updated: 2026-11-11
 
 ## Takeover summary
 
+### CI/CD work on giri
+
+`giri` was created from `imran` at `c528ca0` for Jenkins/Ansible implementation. The project owner reports transcription is working; the code path and application data are preserved. The stale Jenkins/k3s deployment paths have been retired and replaced with the implementation in [docs/ci-cd.md](docs/ci-cd.md). Local verification and live-delivery blockers are recorded in [docs/ci-verification.md](docs/ci-verification.md). No production Jenkins machine identity or backend access has been supplied, so do not treat the new files or local tests as a completed AWS deployment.
+
 The AWS account and deployment remain the same; only the developer is changing. Continue work in AWS account `598391748654`, region `us-west-2`. Do not create another AWS account, migrate Terraform state, rebuild the platform in a different account, or use credentials from the historical suspended account.
 
 The production frontend is <https://dtdd5d335m3k2.cloudfront.net>. The FastAPI API is <https://ec-4762c5d9c1fa4c50a19bed3b76373799.ecs.us-west-2.on.aws>. Cognito sign-in was confirmed in the browser. A synthetic MP3 uploaded successfully and faster-whisper generated transcript, SRT, and VTT objects in the private output bucket. See [the deployment change log](docs/developer-handover-changes.md) for the exact work and evidence.
@@ -54,9 +58,9 @@ The frontend and API URLs and the approved AWS account are also recorded in [doc
 
 ## Jenkins implementation work
 
-Jenkins is **not operationally verified**. The repository has three Jenkinsfiles, but they target the old account-oriented/Kubernetes blue-green setup and contain unresolved references. Do not run those deployment stages against production as-is.
+Production Jenkins delivery is **not operationally verified**. On `giri`, use `ci/Jenkinsfile.validation` and `ci/Jenkinsfile.delivery`, described in [the CI/CD runbook](docs/ci-cd.md). The old infra/runtime entrypoints now fail closed instead of running obsolete deployments.
 
-Observed mismatches to resolve:
+Historical mismatches found on `imran` and retired by the `giri` implementation:
 
 - `ci/Jenkinsfile.infra` loops over historical `account*` roots and invokes missing `ci/scripts/terraform-apply.sh`; it does not select the live `single-account` root.
 - `ci/Jenkinsfile.delivery` invokes missing `ci/scripts/push-images.sh` and `ci/scripts/deploy-color.sh`, and its blue/green Kubernetes deployment does not match the live ECS Express Mode service.
@@ -77,7 +81,7 @@ Do not weaken secret or Trivy gates to make a build pass. Keep scanner details f
 
 ## Ansible implementation work
 
-Ansible is **not operationally verified** and the existing playbook is stale for production. `infrastructure/ansible/playbooks/site.yml` installs k3s on static example hosts; `infrastructure/ansible/inventories/example.yml` contains sample private IPs. Do not run this inventory or playbook against the current AWS account.
+The stale k3s playbook and static-host inventory have been retired on `giri`. The replacement local-only `ci_workspace` role passed lint, syntax, initial check, apply, second apply, and final check on a disposable Docker target. It manages only agent workspace/config directories; no production build agent or cloud host has been provisioned or approved. See [the agent scope and commands](docs/ci-cd.md#agent-scope).
 
 Terraform owns the deployed ECS/S3/DynamoDB/SQS/Cognito/ECR resources. Keep that ownership clear: Ansible must not independently create or mutate those same resources. The current app architecture has no long-lived EC2 application hosts, so first define Ansible's managed target with the project owner. A suitable scope is provisioning/configuring an explicitly approved Jenkins build agent; if the Jenkins agent is container-based, document why a Dockerfile is preferable and use Ansible only where it adds real value. Do not add an EC2 runner or other chargeable resources without approval.
 
