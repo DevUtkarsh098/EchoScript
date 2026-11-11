@@ -10,6 +10,8 @@ Prepared [the costed AWS design](jenkins-aws-design.md), proposed `jenkins-hosti
 
 Requested approval is **$70–$85/month extra**, **$220 account budget with verified contact alerts**, and **$2 one-off AWS test allowance**. Approval has not been granted. Do not interpret an instruction to choose sensible defaults as approval of these costs.
 
+Exact follow-up source commit `80930d1886f1d60b719538a9c4bce27ebbcc6746` was exported using `git archive` and tested in a disposable tools container, excluding local credentials/private artifacts. The real Trivy source-secret scan passed, all 18 safety tests passed, the cost script reproduced $69.47 nominal/$70–$85 planned, and Ansible lint/syntax passed. No Jenkins service or AWS target was started for those checks. Documentation-only commits after this source snapshot record evidence rather than imply a new AWS pipeline run.
+
 ## Completed local checks
 
 - Docker Desktop engine 29.9.2 started; no cloud infrastructure provisioned.
