@@ -53,7 +53,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "uploads" {
 resource "aws_s3_bucket_cors_configuration" "input" {
   bucket = aws_s3_bucket.input.id
   cors_rule {
-    allowed_headers = ["Content-Type"]
+    allowed_headers = ["Content-Type", "Content-Length"]
     allowed_methods = ["PUT", "HEAD"]
     allowed_origins = ["https://${aws_cloudfront_distribution.frontend.domain_name}"]
     expose_headers  = ["ETag"]

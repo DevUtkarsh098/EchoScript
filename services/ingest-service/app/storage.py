@@ -2,6 +2,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from .models import Job
@@ -39,7 +40,12 @@ class S3Storage:
     def __init__(self, region_name: str, input_bucket: str, output_bucket: str, expires_in: int = 900):
         if not input_bucket or not output_bucket:
             raise ValueError("INPUT_BUCKET and OUTPUT_BUCKET are required for S3 storage")
-        self.s3 = boto3.client("s3", region_name=region_name)
+        self.s3 = boto3.client(
+            "s3",
+            region_name=region_name,
+            endpoint_url=f"https://s3.{region_name}.amazonaws.com",
+            config=Config(signature_version="s3v4", s3={"addressing_style": "virtual"}),
+        )
         self.input_bucket = input_bucket
         self.output_bucket = output_bucket
         self.expires_in = expires_in

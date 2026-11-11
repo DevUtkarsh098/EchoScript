@@ -23,6 +23,11 @@ def test_s3_upload_url_is_scoped_and_binds_content_type(mock_client):
     storage = S3Storage("us-west-2", "input-bucket", "output-bucket")
     url, headers = storage.upload_target(sample_job())
 
+    client_kwargs = mock_client.call_args.kwargs
+    assert client_kwargs["region_name"] == "us-west-2"
+    assert client_kwargs["endpoint_url"] == "https://s3.us-west-2.amazonaws.com"
+    assert client_kwargs["config"].signature_version == "s3v4"
+    assert client_kwargs["config"].s3 == {"addressing_style": "virtual"}
     assert url == mock_client.return_value.generate_presigned_url.return_value
     assert headers == {"Content-Type": "audio/mpeg"}
     params = mock_client.return_value.generate_presigned_url.call_args.kwargs
