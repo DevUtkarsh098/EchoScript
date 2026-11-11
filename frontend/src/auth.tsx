@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { isMockAuthEnabled } from './auth-config'
 
 const mockAuth = isMockAuthEnabled(import.meta.env.VITE_APP_ENV, import.meta.env.VITE_MOCK_AUTH)
@@ -45,18 +45,19 @@ export function bearerToken() { return accessToken }
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const [state, setState] = useState<'ready' | 'loading' | 'error'>(mockAuth ? 'ready' : 'loading')
   useEffect(() => {
     if (mockAuth) return
     if (location.pathname === '/auth/callback') {
       setState('loading')
-      completeLogin().then(() => window.location.replace('/dashboard')).catch(() => setState('error'))
+      completeLogin().then(() => navigate('/dashboard', { replace: true })).catch(() => setState('error'))
       return
     }
     if (location.pathname === '/') { setState('ready'); return }
     if (!accessToken) { setState('loading'); beginLogin().catch(() => setState('error')) }
     else setState('ready')
-  }, [location.pathname])
+  }, [location.pathname, navigate])
   if (state === 'loading') return <div className="center-page"><h1>Securely signing you in…</h1><p>Completing the Cognito authorization flow.</p></div>
   if (state === 'error') return <div className="center-page"><h1>Session could not be started</h1><p>Return to the welcome page and try again.</p><a className="button primary" href="/">Return home</a></div>
   return children
