@@ -1,6 +1,8 @@
-# AWS Jenkins hosting proposal — approval required
+# AWS Jenkins hosting design — cost approved
 
 Date: 2026-11-11. Branch: `giri`. Status: design/configuration prepared; **no AWS Jenkins resources have been provisioned**. The owner's transcription workflow is working and remains unchanged.
+
+The owner approved the proposed costs on 2026-11-11 with “cost approved do that”. Reference: `owner-chat-2026-11-11-cost-approved`. This covers $70–$85/month additional Jenkins hosting with agents stopped when idle, a $220/month account-wide budget with verified contact alerts, and the $2 one-off disposable AWS test. Cost approval is no longer pending. Provisioning still requires the developer's own authenticated AWS access, confirmed backend/contact/AMI/policies and a reviewed plan within this scope.
 
 The latest supplied instructions require Jenkins in account `598391748654`, region `us-west-2`, prohibit laptop/external hosting, and require cost approval before chargeable provisioning. The earlier local Jenkins container was stopped and its launch files retired. Its old build records are historical implementation tests, not AWS completion evidence.
 
@@ -45,7 +47,7 @@ Plan **$70–$85/month additional** for this usage pattern. Disk/snapshot churn,
 
 If both agents are left running all month, Jenkins rises to approximately **$176.94/month additional**, with combined application + Jenkins planning spend around **$262–$287/month**. Keep agent start/stop discipline and alerts; do not present the low-hours estimate as an always-on price.
 
-The application's existing estimate is $85–$110/month, not a new measurement of actual billing. Combined expected spend is therefore **$155–$195/month** with agents used as planned. The existing `$100/month` budget has no email notification and, in the checked-in Terraform, no cost filter: it covers account-wide cost. It cannot accommodate this proposal. Request explicit approval for an account budget of **$220/month**, alerts to the verified billing/contact email, and a separate **one-off $2 allowance** for an approximately four-hour disposable AWS host test. Budgets alert; they do not cap charges.
+The application's existing estimate is $85–$110/month, not a new measurement of actual billing. Combined expected spend is therefore **$155–$195/month** with agents used as planned. The existing `$100/month` budget has no email notification and, in the checked-in Terraform, no cost filter: it covers account-wide cost. The owner approved increasing this to **$220/month**, alerts to the verified billing/contact email, and a separate **one-off $2 allowance** for an approximately four-hour disposable AWS host test. The budget change has not been applied. Budgets alert; they do not cap charges.
 
 Updating the existing account budget must be reviewed/applied through its current `single-account` ownership with the current application image tag preserved. The hosting root does not create a competing budget or silently change that existing resource. Any unexpected application/data-resource change in that administrative plan must stop the operation.
 
@@ -96,8 +98,8 @@ Target RPO is 24 hours; initial RTO planning target is two hours, pending a rest
 
 Plan monthly OS/Docker/Jenkins/plugin security updates, earlier emergency patches, digest-pinned scanned images, coordinated agent/controller maintenance, and a backup before upgrades. Enable scoped CloudWatch container/system logs and Jenkins audit events with retention; never log bootstrap secrets, JWTs, secret scan details, signed URLs or decrypted plans. Log shipping, host runtime configuration, backup consistency and recovery must be verified on AWS before operational acceptance.
 
-## Current evidence and required decision
+## Current evidence and remaining prerequisites
 
 Backend-free Terraform fmt/validate passed for the proposal using the existing signed AWS 6.72.0 provider; no provider upgrade, AWS backend init, plan/apply, or cloud API resource change occurred. Eighteen CI safety tests passed, including three new machine-profile tests. Ansible production-profile lint and AWS playbook syntax passed; **no AWS check-mode/apply/idempotence test has run**. Existing application checks/scans and historical local pipeline evidence remain in [ci-verification.md](ci-verification.md).
 
-Required decision: approve or revise the **$70–$85/month AWS Jenkins design**, **$220 account budget/verified contact alerts**, and **$2 disposable AWS test allowance**. Only then proceed with own Identity Center access, backend/AMI/policy verification, a reviewed provisioning plan and AWS target tests. This document is not a spending approval.
+Cost approval is recorded above and in `ci/jenkins-cost-estimate.json`. A fresh `aws configure list-profiles` check after approval still returned no configured profiles. Browser sign-in automation was unavailable; no login, credential copying or AWS provisioning occurred. The developer must configure and sign into their own `giri` Identity Center profile. Then verify account/role, backend, billing contact, AMI and policies, review the provisioning plan, and perform the AWS target tests. No further cost confirmation is needed for the approved scope.

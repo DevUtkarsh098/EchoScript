@@ -1,8 +1,8 @@
 # Proposed AWS-only Jenkins hosting
 
-This root has not been provisioned. Account and region are pinned to `598391748654` / `us-west-2`. Cost approval is required by the owner's supplied instructions. Review [the full cost/access design](../../../docs/jenkins-aws-design.md) and reproduce costs with `python scripts/estimate-jenkins-cost.py` from the repository root.
+This root has not been provisioned. Account and region are pinned to `598391748654` / `us-west-2`. The owner approved the proposed costs on 2026-11-11; reference `owner-chat-2026-11-11-cost-approved`. Review [the full cost/access design and scope](../../../docs/jenkins-aws-design.md) and reproduce costs with `python scripts/estimate-jenkins-cost.py` from the repository root.
 
-Default approval values are empty/zero; the provisioning preconditions reject them. Do not invent an approval reference or contact email. Pin a Canonical Ubuntu 24.04 amd64 AMI, verify own Identity Center profile `giri`, generate/review the five IAM policies from confirmed live application metadata, and obtain explicit budget approval first.
+Default approval values remain empty/zero; the provisioning preconditions reject them. Use the recorded approval reference and approved $220 account budget in the private provisioning inputs; do not invent a contact email. Pin a Canonical Ubuntu 24.04 amd64 AMI, verify own Identity Center profile `giri`, verify the alert contact and generate/review the five IAM policies from confirmed live application metadata before planning.
 
 State ownership is separate: use the existing confirmed encrypted backend bucket and lock table but key **`echoscript/jenkins-hosting/terraform.tfstate`**. Never supply the application key `echoscript/prod/terraform.tfstate`. Do not bootstrap, migrate, import or replace existing state. Backend initialization and a live reviewed plan are still pending; only `init -backend=false` and validation have run.
 

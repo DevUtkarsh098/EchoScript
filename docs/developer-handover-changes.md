@@ -14,11 +14,16 @@ This document records the recovery, deployment, and verification changes availab
 
 ## Changes and evidence
 
+### Cost approval follow-up, 2026-11-11
+
+- Owner approved the proposed $70–$85/month Jenkins hosting increment, $220/month account budget and $2 disposable AWS test with “cost approved do that”; reference `owner-chat-2026-11-11-cost-approved`. Updated the cost model and status; no further cost confirmation is required within this scope.
+- AWS CLI still lists no profiles. Requested the developer's own `giri` Identity Center configuration/login; browser automation was unavailable. No credentials were copied and no cloud provisioning, backend initialization or budget update occurred. Verified contact email, backend, AMI and policies still require authenticated access. Runtime implementation and live acceptance checks remain pending.
+
 ### AWS-only hosting follow-up, 2026-11-11
 
 - Applied the revised instruction that Jenkins must run in AWS, not on a laptop. Stopped the old local controller and retired its launcher files while retaining historical evidence.
 - Prepared a separate, account/region-pinned `jenkins-hosting` Terraform proposal with explicit cost/budget/email/policy preconditions, independent state key in the same existing backend, three isolated hosts and a disabled optional AWS test host. No AWS backend init, plan/apply or provisioning occurred.
-- Added a parameterized SSM inventory and guarded `jenkins_host` Ansible foundation. Lint/syntax passed, but AWS check/apply/idempotence has not run and is blocked until cost approval. Production controller/HTTPS/agent runtime and recovery testing remain pending.
+- Added a parameterized SSM inventory and guarded `jenkins_host` Ansible foundation. Lint/syntax passed, but AWS check/apply/idempotence has not run. Cost approval was subsequently received; own AWS login is pending. Production controller/HTTPS/agent runtime and recovery testing remain pending.
 - Added EC2 instance-profile-to-job-role support, fixed root-owned 900-second machine profiles and security tests; 18 CI safety tests now pass. Static keys and developer SSO on Jenkins remain prohibited.
 - Verified public Oregon EC2 rates and recorded a reproducible cost model: $69.47 nominal / $70–$85 expected monthly CI increment; $155–$195 combined application/account estimate. Proposed account budget is $220 plus a $2 one-off AWS test allowance, neither approved yet.
 - Updated handover/status/deployment documentation to respect the owner's confirmed working transcription workflow. The former fresh-job acceptance gap is historical, not outstanding. Pipeline smoke tests remain a separate future CI requirement.
@@ -52,7 +57,7 @@ This document records the recovery, deployment, and verification changes availab
 - Exercise worker failure, retry, slot release, and recovery. Test representative speech and supported formats.
 - Decide whether the deployed PyAV decoder meets the original FFmpeg requirement or add and test the required FFmpeg processing step.
 - Review actual AWS costs and configure a budget alert. Current estimate is `$85–$110/month`; Terraform's `$100/month` budget has no alert recipient.
-- AWS-hosted Jenkins/Ansible are not operational yet. `giri` replaced the stale deployment paths and added tested CI controls. The AWS hosting proposal is now cost-gated; no cloud Jenkins resources or disposable AWS test host have been provisioned. See [jenkins-aws-design.md](jenkins-aws-design.md).
+- AWS-hosted Jenkins/Ansible are not operational yet. `giri` replaced the stale deployment paths and added tested CI controls. Costs are approved, but own AWS access is pending; no cloud Jenkins resources or disposable AWS test host have been provisioned. See [jenkins-aws-design.md](jenkins-aws-design.md).
 - Verify rollback, monitoring/alert delivery, SonarQube/ZAP if adopted, and the separate video/provider workflow.
 
 ## Repository and runtime notes
