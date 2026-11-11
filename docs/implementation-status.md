@@ -1,6 +1,6 @@
 # Implementation status
 
-This status describes the GitHub `main` source at baseline commit `9164e5d7a7469aed500d8a1bb456b54d8c719f6e`, plus clearly labeled changes on `codex/handover-security-gates`. Repository configuration is not proof of a running cloud deployment. See [HANDOFF_FOR_NEXT_DEVELOPER.md](../HANDOFF_FOR_NEXT_DEVELOPER.md) for architecture, source-verified gaps, historical evidence, and prioritized work.
+This status describes the GitHub `main` source at baseline commit `9164e5d7a7469aed500d8a1bb456b54d8c719f6e`, the handover changes, and the current deployment branch. Repository configuration is not proof of a running cloud deployment; live evidence is labeled below. See [HANDOFF_FOR_NEXT_DEVELOPER.md](../HANDOFF_FOR_NEXT_DEVELOPER.md) for architecture, source-verified gaps, and historical evidence.
 
 ## Present in source
 
@@ -17,7 +17,7 @@ This status describes the GitHub `main` source at baseline commit `9164e5d7a7469
 - The baseline API source had no S3 storage adapter or DynamoDB repository. Deployment-branch adapters now exist; integrated AWS behavior is still unverified.
 - Video service end-to-end invocation/provider behavior is not verified.
 - Jenkins references missing scripts and a missing monitoring path; see the handover blocker table.
-- No tracked SonarQube stage/configuration or verified Quality Gate, OWASP ZAP pipeline/result, complete deployed monitoring/Alertmanager stack, or current cloud deployment is established.
+- No tracked SonarQube stage/configuration or verified Quality Gate, OWASP ZAP pipeline/result, or complete monitoring/Alertmanager stack is established.
 
 ## Handover branch changes and verification
 
@@ -31,17 +31,18 @@ This status describes the GitHub `main` source at baseline commit `9164e5d7a7469
 
 - Frontend mock authentication now fails closed unless both `VITE_APP_ENV=local` and `VITE_MOCK_AUTH=true` are explicitly set. Cognito client configuration is passed through the frontend image build arguments; local Compose selects local demo mode explicitly.
 - Audio upload requests now carry the in-memory Cognito access token. The API resolves the job under the authenticated principal, checks the declared media type and size, and streams uploads through a temporary file before atomically moving them into place. Transcript, subtitle, audio, and video reads now use the authenticated API client. A regression test covers cross-user upload rejection.
-- Terraform defaults and image references target `us-west-2`. A single-account root defines CloudFront/private S3, Cognito, App Runner, DynamoDB, SQS/DLQ, Lambda/Step Functions, Fargate, scoped IAM roles, and budget resources. No AWS identity check or infrastructure action has been performed.
+- Terraform defaults and image references target `us-west-2`. The single-account root now defines CloudFront/private S3, Cognito, ECS Express Mode, DynamoDB, SQS/DLQ, Lambda/Step Functions, Fargate, scoped IAM roles, and budget resources.
 - API source now has S3/DynamoDB/SQS adapters, authenticated ownership-scoped presigned uploads/downloads, verified upload completion, queue dispatch, and worker-side faster-whisper processing with TXT/SRT/VTT persistence. Adapter and API regression tests are present. The cloud workflow has not yet been exercised against AWS.
-- Deployment scripts verify that the active AWS account and region match Terraform outputs before image publication or frontend deployment. The infrastructure-to-image bootstrapping sequence is documented. No images or frontend assets have been published.
-- Frontend production build passes; frontend auth guard tests (3), backend pytest (10), Ruff lint, and secret-scan wrapper tests (4) pass. Compose configuration parses, Python source compiles, shell scripts parse, Terraform formatting and validation pass, and `git diff --check` passes. Trivy and a usable Docker daemon are unavailable. No live AWS tests, actual image scans, or image builds have run. Existing `npm audit` reported 15 dependency advisories (10 moderate, 3 high, 2 critical); no automatic upgrades were applied.
-- AWS account credentials are not configured, as confirmed by the owner. No AWS API has been called and no infrastructure has been created. The architecture and planning range are approved; chargeable resource creation still requires separate explicit approval.
+- Deployment scripts verify that the active AWS account and region match Terraform outputs before image publication or frontend deployment. The publish script invokes the secret scan through Bash so it works with the checked-out file mode.
+- On 2026-11-11, Docker built the API and worker images for Linux AMD64 using pinned Amazon Linux 2023 release `2023.12.20261109`. Trivy source-secret scanning passed; both images passed the HIGH/CRITICAL vulnerability gate with zero findings. Immutable tag `81092db` was pushed to ECR in account `598391748654`, region `us-west-2`.
+- Terraform validation passed. The reviewed plan showed 75 additions, 0 changes, and 0 deletions; apply completed with 75 resources added. The deployed frontend returned HTTP 200. The ECS API task and ALB target are healthy, and `/ready` returned `200` through the active ALB.
+- The frontend production build completed and the assets were synced to the private S3 bucket; CloudFront invalidation was requested. The `$100/month` AWS Budget has no email notification recipient configured.
 
 ## External verification still required
 
 - Run the exact secret and image scan commands with the approved Trivy release on the Jenkins agent; confirm ignore-file syntax and Markdown coverage with a harmless fixture, without committing or printing credentials.
-- Run backend/frontend checks in a reproducible environment and exercise Cognito, owner isolation, upload, worker execution, durable persistence, output download, and failure/retry behavior.
-- Inspect a new AWS account, state backend, networking, IAM, quotas, region, budget, and cleanup plan before preparing a non-mutating Terraform plan.
+- Complete authenticated acceptance with a real user: Cognito sign-in, owner-isolation/cross-user rejection, real audio upload, worker transcription, durable persistence, TXT/SRT/VTT downloads, and failure/retry behavior.
+- Review the AWS bill and configure budget email notifications if wanted; the `$85–$110/month` planning range is not a cost cap.
 - Configure Jenkins credentials outside source, restore missing pipeline scripts/path, enforce Sonar Quality Gate if adopted, define ZAP scope, and validate private monitoring/alert delivery.
 
-No current AWS account/resource access is assumed. No infrastructure was provisioned or changed for this handover.
+The active AWS account and resources are recorded in [docs/deployment.md](deployment.md). Core services are provisioned and live; end-to-end authenticated audio acceptance remains outstanding.

@@ -1,10 +1,10 @@
 # EchoScript AWS deployment proposal
 
-**Status: revised architecture proposal; owner review required before application infrastructure is changed or provisioned.** The bootstrap state bucket, lock table, and two ECR repositories have already been created in the new account `598391748654`, region `us-west-2`, under the earlier limited approval. No application services, data buckets, or user-facing resources have been created. The old account, credentials, state, buckets, identities, and infrastructure are out of scope.
+**Status: approved for deployment by the user's direction in this session and provisioned on 2026-11-11.** Core resources are in account `598391748654`, region `us-west-2`; see [deployment record](deployment.md) for endpoint URLs and remaining acceptance checks. The old account, credentials, state, buckets, identities, and infrastructure remain out of scope.
 
 ## Architecture
 
-The existing three-account EC2/k3s plan does not fit the confirmed single new account and is incomplete in source. This proposal uses one account and managed AWS services. It is a material architecture change and needs owner approval before implementation or provisioning.
+The existing three-account EC2/k3s plan did not fit the confirmed single new account and was incomplete in source. This design uses one account and managed AWS services.
 
 ```mermaid
 flowchart LR
@@ -28,9 +28,9 @@ flowchart LR
 - Cognito provides sign-in with the existing browser PKCE flow. The API verifies access tokens and authorizes every job using the token subject.
 - ECS Express Mode hosts the FastAPI API on Fargate behind an HTTPS Application Load Balancer. The API uses a scoped task role for DynamoDB, S3, and SQS. This replaces App Runner because AWS closed App Runner to new customers and recommends ECS Express Mode for new deployments ([AWS availability notice](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)).
 - S3 holds source audio and generated outputs, with public access blocked and encryption enabled. The API issues short-lived presigned upload/download URLs after checking ownership.
-- DynamoDB stores the job lifecycle, keyed by owner subject and job ID. SQS plus a dead-letter queue tracks processing requests. A small Lambda launcher starts one ECS Fargate task per job; the worker downloads the audio, runs FFmpeg and faster-whisper, writes TXT/SRT/VTT, and records completion or failure.
-- ECR stores immutable API and worker images. CloudWatch captures logs and service/job metrics. AWS Budgets sends cost threshold notifications.
-- The worker has no inbound access. GPU is not proposed; the initial worker uses a multilingual tiny CPU model and one job per task. We must validate transcription time and output quality with a known-speech file before selecting larger resources.
+- DynamoDB stores the job lifecycle, keyed by owner subject and job ID. SQS plus a dead-letter queue tracks processing requests. A small Lambda launcher starts one ECS Fargate task per job; the worker downloads the audio, decodes it with PyAV, runs faster-whisper, writes TXT/SRT/VTT, and records completion or failure.
+- ECR stores immutable API and worker images. CloudWatch captures logs and service/job metrics. An AWS Budget tracks a `$100/month` threshold; no notification email is configured.
+- The worker has no inbound access. GPU is not used; the worker defaults to a multilingual tiny CPU model and one job per task. Validate transcription time and output quality with a known-speech file before selecting larger resources.
 
 ECS Express Mode supplies the API's HTTPS endpoint, load balancer, scaling configuration, and networking. CloudFront's default hostname also supports HTTPS. These avoid a custom DNS dependency for the initial deployment. AWS charges no separate ECS Express Mode fee; the underlying Fargate, Application Load Balancer, public IPv4, logging, and data-transfer resources are billed ([ECS Express Mode overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)). S3 access should use OAC, which AWS recommends for private origins ([OAC documentation](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html)).
 
@@ -47,23 +47,21 @@ This is a planning estimate, not a bill quote. It assumes `us-west-2`, one alway
 | S3, DynamoDB, SQS, Lambda, ECR, CloudFront, CloudWatch | $10–$25 | 100 GB total object storage, low request volume, modest logs and egress. |
 | **Estimated total** | **$85–$110/month** | Low-volume first release, no GPU or NAT Gateway; includes always-on API compute and public load balancer. |
 
-Every additional 100 Fargate worker-hours is approximately another $11–$15 at the planning rate; higher transcription volume increases this line. The API runs continuously and its baseline compute is about $36/month before load balancing and IP charges. The API and worker use pay-for-duration billing, while storage, logs, LCU usage, and data egress vary with actual usage. Fargate pricing depends on task CPU, memory, storage, and runtime ([Fargate pricing](https://aws.amazon.com/fargate/pricing/)); ALB billing includes hourly and LCU use ([ALB pricing](https://aws.amazon.com/elasticloadbalancing/pricing/)); public IPv4 is $0.005/address-hour ([VPC pricing](https://aws.amazon.com/vpc/pricing/)). These are list-rate planning calculations, not a final AWS Pricing Calculator quote. The old `$35–$66/month` estimate assumed App Runner and is superseded. Recreate the estimate in the [AWS Pricing Calculator](https://calculator.aws/) with the final task sizing and traffic assumptions before authorizing the application deployment.
+Every additional 100 Fargate worker-hours is approximately another $11–$15 at the planning rate; higher transcription volume increases this line. The API runs continuously and its baseline compute is about $36/month before load balancing and IP charges. The API and worker use pay-for-duration billing, while storage, logs, LCU usage, and data egress vary with actual usage. Fargate pricing depends on task CPU, memory, storage, and runtime ([Fargate pricing](https://aws.amazon.com/fargate/pricing/)); ALB billing includes hourly and LCU use ([ALB pricing](https://aws.amazon.com/elasticloadbalancing/pricing/)); public IPv4 is $0.005/address-hour ([VPC pricing](https://aws.amazon.com/vpc/pricing/)). These are list-rate planning calculations, not a final AWS Pricing Calculator quote. The old `$35–$66/month` estimate assumed App Runner and is superseded. Recreate the estimate in the [AWS Pricing Calculator](https://calculator.aws/) with measured task sizing and traffic assumptions.
 
 ## Required approvals and dependencies
 
-The account identity and region are confirmed, and AWS IAM Identity Center access succeeded. The initial bootstrap resources were provisioned with the owner's limited approval. This revised ECS Express Mode design and `$85–$110/month` estimate are not yet approved. Do not change or provision application infrastructure until the owner approves the revised design and cost range. Do not send passwords or access keys in chat. Actual spend depends on task runtime, storage, logs, LCU use, and data transfer; the planning range is not a bill cap.
+The account identity and region are confirmed, and AWS IAM Identity Center access succeeded. The user directed implementation and deployment in this session. The `$85–$110/month` figure remains a planning estimate, not a bill cap; actual spend depends on task runtime, storage, logs, LCU use, and data transfer. A `$100/month` AWS Budget exists without email notifications. Do not send passwords or access keys in chat.
 
-The application adapters and task-launch workflow are now implemented in source but remain locally unverified as an integrated cloud system. Cognito user-pool/client IDs and callback URLs, bucket names, ECR repository URLs, role ARNs, and Terraform state must be created for the new account. S3 names are generated from the new account ID; no old bucket or state name is reused.
+Infrastructure and frontend are provisioned. Public frontend and API health smoke checks passed, but authenticated real-audio end-to-end acceptance remains outstanding. Cognito user pool/client, buckets, ECR repositories, roles, and Terraform state are in the new account. No old-account state or bucket was reused.
 
-## Deployment sequence after separate provisioning approval
+## Deployment record and remaining acceptance
 
-1. After approval, revise the Terraform provider and replace the App Runner API resource with ECS Express Mode, including task and infrastructure roles and required network configuration. Review provider-version compatibility before implementation.
-2. Initialize Terraform from `infrastructure/terraform/single-account` against the already bootstrapped new-account state backend. Keep state in the new account with encryption and locking.
-3. The two immutable ECR repositories already exist in the new account. Confirm their names and account ownership from the active profile; do not recreate or replace them.
-4. Run `scripts/publish-images.sh <git-commit-sha>` to build and push immutable API and worker images. The script checks the active account and region against Terraform state.
-5. Review a fresh Terraform plan, including replacement and deletion actions, then obtain explicit approval before full apply. Set `image_tag` to the published commit SHA.
-6. Run `scripts/deploy-frontend.sh`; it verifies account and region, builds the SPA with the newly created API/Cognito outputs, syncs the private web bucket, and invalidates CloudFront.
-7. Complete the authenticated real-audio end-to-end acceptance checks in the handover. Do not report cloud deployment complete until these pass.
+1. The API and worker images at tag `81092db` passed source secret and HIGH/CRITICAL vulnerability scans and were pushed to ECR.
+2. A fresh Terraform plan showed 75 resources to add and no changes or deletions; it was applied successfully.
+3. `scripts/deploy-frontend.sh` built the SPA with deployed API/Cognito outputs, synced the private web bucket, and requested a CloudFront invalidation.
+4. The frontend returned HTTP 200. The API `/ready` check returned HTTP 200 through its active ALB; the ECS task and ALB target are healthy.
+5. Complete authenticated real-audio checks: sign in, verify cross-user rejection, process a real audio file, and download TXT, SRT, and VTT outputs. Do not mark end-to-end acceptance complete before these checks pass.
 
 ## Rollback and recovery
 

@@ -6,6 +6,10 @@ The authoritative repository is [Girirraju/EchoScript](https://github.com/Girirr
 
 This guide uses **verified in source** for facts observed in this checkout, **historical evidence** for reports about a past environment, **unverified** for behavior requiring a live service, and **recommendation** for future work. Configuration and documentation describing an architecture are not proof that its runtime integration exists. The former AWS account, credentials, state, and running resources are unavailable for this handover; plan any future deployment for a new account and do not assume prior resources exist.
 
+## Current deployment status (2026-11-11)
+
+The single-account deployment branch `codex/full-cloud-deployment` is deployed in new AWS account `598391748654`, region `us-west-2`, from commit `81092db`. The frontend is live at <https://dtdd5d335m3k2.cloudfront.net>; the API is at <https://ec-4762c5d9c1fa4c50a19bed3b76373799.ecs.us-west-2.on.aws>. Terraform applied 75 resources. Docker-built API and worker images passed Trivy secret and HIGH/CRITICAL scans and were published to ECR. The frontend and API readiness smoke checks returned HTTP 200, and the ECS API task/ALB target are healthy. Authenticated real-audio, cross-user, and result-download acceptance remains outstanding. See [docs/deployment.md](docs/deployment.md) and [docs/implementation-status.md](docs/implementation-status.md) for current evidence. Statements below that say no AWS deployment exists describe the earlier source review baseline and are superseded by this current status.
+
 ## Read this documentation
 
 1. [README.md](README.md): purpose, repository entry points, quick setup.

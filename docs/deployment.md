@@ -2,7 +2,7 @@
 
 This is the active single-account deployment path for the new AWS account in `us-west-2`. The previous three-account/k3s procedure is retained in Git history and handover notes for context; it is not the selected deployment. See [the architecture and cost proposal](deployment-proposal.md) for the approved design and assumptions.
 
-**The ECS Express Mode architecture and revised `$85–$110/month` planning estimate are proposed and await owner approval.** The account is authenticated. The separately approved bootstrap stage is complete: encrypted/versioned Terraform state bucket, DynamoDB lock table, and immutable API/worker ECR repositories exist in account `598391748654`, region `us-west-2`. No application services or user-facing resources have been provisioned.
+**Core deployment provisioned on 2026-11-11** in account `598391748654`, region `us-west-2`, from commit `81092db`. Terraform created 75 resources. The React frontend is published at <https://dtdd5d335m3k2.cloudfront.net>; the API is at <https://ec-4762c5d9c1fa4c50a19bed3b76373799.ecs.us-west-2.on.aws>. The API `/ready` endpoint returned `200`, its ECS task and ALB target are healthy, and the frontend returned `200`. Authenticated real-audio acceptance, cross-user authorization, and TXT/SRT/VTT download checks remain outstanding, so the deployment is provisioned but not yet end-to-end accepted.
 
 ## Components
 
@@ -11,10 +11,10 @@ This is the active single-account deployment path for the new AWS account in `us
 - ECS Express Mode hosts the FastAPI API on Fargate behind an HTTPS Application Load Balancer. AWS closed App Runner to new customers; see the [revised architecture and cost proposal](deployment-proposal.md).
 - DynamoDB stores owner-keyed job state. Private S3 stores uploaded audio and TXT/SRT/VTT results.
 - SQS and a dead-letter queue feed a Lambda dispatcher and Step Functions workflow.
-- Fargate runs one CPU-only faster-whisper task per job. No GPU or inbound worker access is configured.
+- Fargate runs one CPU-only faster-whisper task per job. Audio is decoded directly through PyAV; no FFmpeg package, GPU, or inbound worker access is configured.
 - ECR stores immutable API and worker images. CloudWatch logs and an AWS Budget are provisioned by Terraform.
 
-## Prerequisites for a later deployment session
+## Prerequisites for future updates
 
 1. Configure AWS IAM Identity Center or another short-lived role profile locally for the **new** account. Never provide credentials in chat or commit them.
 2. Confirm the active profile, account ID, and `us-west-2` locally before using AWS commands. Confirm billing is active and quotas permit the resources in the proposal.
@@ -22,17 +22,15 @@ This is the active single-account deployment path for the new AWS account in `us
 4. Install Terraform `>=1.7`, AWS CLI, Docker, Node/npm, and Trivy.
 5. Provide an optional budget-alert email address through a local ignored `terraform.tfvars` file if AWS Budgets notifications are wanted.
 
-## Deployment sequence
+## Deployment record and next acceptance steps
 
-Do not proceed beyond the existing bootstrap resources until the owner approves the revised architecture and cost range. After approval, each application resource-creating step still requires a reviewed plan and the applicable provisioning approval.
+The user directed deployment to proceed in this session. The revised ECS Express Mode architecture was applied through a fresh reviewed plan. The image publishing gate ran the Trivy source secret scan and HIGH/CRITICAL image scan before publication.
 
-1. The bootstrap backend and ECR repositories already exist. Use the configured backend values in the ignored `backend.hcl` and verify the state points to the new account's state bucket before initializing the application root. Never reuse state from the previous AWS account.
-2. After architecture approval and Terraform updates, copy `terraform.tfvars.example` to the ignored `terraform.tfvars`, set `image_tag` to the Git SHA that will be published, and set the budget-alert address if notifications are wanted. Confirm the existing ECR repositories are tracked/imported correctly before planning; do not create duplicates.
-3. Run `scripts/publish-images.sh YOUR_GIT_SHA` from a clean checkout at that exact commit. It checks that the active AWS account and region match the Terraform outputs, runs the source secret scan, builds Linux AMD64 images, blocks HIGH/CRITICAL Trivy findings, and pushes immutable tags.
-4. Set `image_tag` to the published SHA, then create and review a fresh full Terraform plan. Stop for owner review if the plan deletes, replaces, or exposes unexpected resources. Apply only after explicit approval.
-5. Run `scripts/deploy-frontend.sh`. It checks the current account and region against Terraform, builds with the new API and Cognito outputs, syncs the private web bucket, then invalidates CloudFront.
-6. Complete the real-audio acceptance workflow in `HANDOFF_FOR_NEXT_DEVELOPER.md`, including actual authentication, cross-user rejection, faster-whisper processing, and all three downloadable outputs.
-7. Record the public frontend/API URLs, image SHA, test evidence, deployed resources, and actual cost-monitoring configuration. Do not describe the app as deployed until the full acceptance test passes.
+1. Bootstrap state and ECR repositories are in the new account; application Terraform state remains in the encrypted S3 backend with DynamoDB locking.
+2. Immutable API and worker images tagged `81092db` were pushed to the account's ECR repositories.
+3. Terraform applied the full plan: 75 resources added, none changed or destroyed. CloudFront, Cognito, ECS Express, Fargate worker orchestration, private buckets, queues, tables, logs, and a `$100/month` AWS Budget were provisioned. No budget email is configured.
+4. The frontend was built with the deployed API and Cognito settings, synced to the private S3 origin, and a CloudFront invalidation was requested.
+5. Complete the authenticated real-audio acceptance workflow in `HANDOFF_FOR_NEXT_DEVELOPER.md`: sign in, verify cross-user rejection, process a real audio file, and download TXT, SRT, and VTT outputs. Record the results before calling the app end-to-end accepted.
 
 ## State, recovery, and cleanup
 
