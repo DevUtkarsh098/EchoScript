@@ -1,0 +1,4 @@
+jenkins_host_approval_reference: owner-chat-2026-11-11-cost-approved
+jenkins_host_disposable_checks_passed: true
+jenkins_host_controller_private_ip: 10.63.0.16
+jenkins_agent_start: true
