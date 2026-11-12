@@ -4,3 +4,20 @@ jenkins_host_disposable_checks_passed: false
 jenkins_host_role: disposable
 jenkins_host_region: us-west-2
 jenkins_host_account_id: '598391748654'
+
+# Keep the existing extra-var names as input aliases while the role uses
+# consistently role-prefixed variables internally.
+jenkins_host_controller_image: "{{ jenkins_controller_image | default('jenkins/jenkins:2.580.2-lts-jdk21') }}"
+jenkins_host_agent_image: "{{ jenkins_agent_image | default('598391748654.dkr.ecr.us-west-2.amazonaws.com/echoscript/jenkins/agent:pilot-20261112-v2') }}"
+jenkins_host_buildkit_image: "{{ jenkins_buildkit_image | default('moby/buildkit:v0.34.1-rootless') }}"
+jenkins_host_controller_url: "{{ jenkins_controller_url | default('https://jenkins.internal:8443') }}"
+jenkins_host_data_mount: "{{ jenkins_data_mount | default('/mnt/jenkins-data') }}"
+jenkins_host_secret_id: "{{ jenkins_secret_id | default('echoscript/jenkins/' ~ jenkins_host_role ~ '/bootstrap') }}"
+jenkins_host_github_owner: "{{ jenkins_github_owner | default('DevUtkarsh098') }}"
+jenkins_host_github_repository: "{{ jenkins_github_repository | default('EchoScript') }}"
+jenkins_host_github_branch: "{{ jenkins_github_branch | default('giri') }}"
+jenkins_host_github_poll_minutes: "{{ jenkins_github_poll_minutes | default(2) }}"
+jenkins_host_admin_user: "{{ jenkins_admin_user | default('admin') }}"
+jenkins_host_controller_volume_id: "{{ jenkins_controller_volume_id | default('') }}"
+jenkins_host_controller_private_ip: "{{ jenkins_controller_private_ip | default('') }}"
+jenkins_host_backup_bucket: "{{ jenkins_backup_bucket | default('') }}"

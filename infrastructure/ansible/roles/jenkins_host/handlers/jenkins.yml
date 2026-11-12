@@ -1,0 +1,6 @@
+---
+- name: Restart Jenkins controller
+  ansible.builtin.systemd_service:
+    name: echoscript-jenkins
+    state: restarted
+    daemon_reload: true

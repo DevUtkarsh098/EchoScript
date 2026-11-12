@@ -5,7 +5,7 @@ from pathlib import Path
 data = json.loads((Path(__file__).resolve().parents[1] / 'ci/jenkins-cost-estimate.json').read_text())
 agent_hours = data['validation_hours'] + data['release_hours']
 fixed = data['ebs_gb'] * data['ebs_gb_month_assumption'] + sum(data[key] for key in (
-    'backup_storage_allowance', 'logging_allowance', 'secrets_allowance',
+    'backup_storage_allowance', 's3_backup_storage_allowance', 'logging_allowance', 'secrets_allowance',
     'ecr_storage_allowance', 's3_transfer_allowance', 'network_transfer_allowance'))
 nominal = (data['controller_hours'] * data['controller_hourly'] + agent_hours * data['agent_hourly']
            + (data['controller_hours'] + agent_hours) * data['public_ipv4_hourly'] + fixed)

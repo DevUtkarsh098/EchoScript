@@ -1,0 +1,386 @@
+---
+- name: Read block device inventory as JSON
+  ansible.builtin.command:
+    argv:
+      - lsblk
+      - --json
+      - --nodeps
+      - --output
+      - PATH,SERIAL,TYPE
+  register: jenkins_host_block_devices
+  changed_when: false
+
+- name: Select the controller data volume by its EBS serial
+  ansible.builtin.set_fact:
+    jenkins_host_data_device: >-
+      {{
+        (
+          (jenkins_host_block_devices.stdout | from_json).blockdevices
+          | selectattr('serial', 'equalto', jenkins_host_controller_volume_id | replace('-', ''))
+          | selectattr('type', 'equalto', 'disk')
+          | map(attribute='path')
+          | first
+          | default('')
+        )
+      }}
+  failed_when: jenkins_host_data_device | trim == ''
+
+- name: Inspect existing data disk filesystem
+  ansible.builtin.command:
+    argv: [blkid, -o, value, -s, TYPE, "{{ jenkins_host_data_device | trim }}"]
+  register: jenkins_host_data_filesystem
+  changed_when: false
+  failed_when: jenkins_host_data_filesystem.rc not in [0, 2]
+
+- name: Format only the newly provisioned blank controller volume
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ jenkins_host_data_device | trim }}"
+  when: jenkins_host_data_filesystem.rc == 2
+
+- name: Mount persistent controller volume
+  ansible.posix.mount:
+    path: "{{ jenkins_host_data_mount }}"
+    src: "{{ jenkins_host_data_device | trim }}"
+    fstype: ext4
+    opts: defaults,noatime
+    state: mounted
+
+- name: Create controller runtime directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+  loop:
+    - /opt/echoscript-jenkins
+    - /etc/echoscript/jenkins
+    - /etc/echoscript/jenkins/casc
+    - /var/lib/echoscript-jenkins
+    - "{{ jenkins_host_data_mount }}/tls"
+
+- name: Allow the Jenkins container to read its non-secret configuration
+  ansible.builtin.file:
+    path: /etc/echoscript/jenkins/casc
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Ensure Jenkins data mount directory exists
+  ansible.builtin.file:
+    path: "{{ jenkins_host_data_mount }}"
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0750'
+
+- name: Ensure Jenkins home directory is writable by the container user
+  ansible.builtin.file:
+    path: "{{ jenkins_host_data_mount }}/home"
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0750'
+
+- name: Generate persistent controller TLS CA when absent
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -nodes
+      - -newkey
+      - rsa:3072
+      - -days
+      - '3650'
+      - -keyout
+      - "{{ jenkins_host_data_mount }}/tls/ca.key"
+      - -out
+      - "{{ jenkins_host_data_mount }}/tls/jenkins-ca.crt"
+      - -subj
+      - /CN=EchoScript Jenkins Internal CA
+  args:
+    creates: "{{ jenkins_host_data_mount }}/tls/jenkins-ca.crt"
+  no_log: true
+
+- name: Restrict persistent controller CA private key
+  ansible.builtin.file:
+    path: "{{ jenkins_host_data_mount }}/tls/ca.key"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Install controller leaf certificate renewal script
+  ansible.builtin.template:
+    src: renew-certificate.sh.j2
+    dest: /usr/local/sbin/echoscript-jenkins-renew-certificate
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Create or renew the HTTPS leaf certificate before proxy startup
+  ansible.builtin.command: /usr/local/sbin/echoscript-jenkins-renew-certificate
+  register: jenkins_host_certificate_renewal
+  changed_when: "'renewed' in jenkins_host_certificate_renewal.stdout"
+
+- name: Install daily controller certificate renewal service and timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/{{ item.name }}
+    owner: root
+    group: root
+    mode: '0644'
+    content: "{{ item.content }}\n"
+  loop:
+    - name: echoscript-jenkins-certificate-renewal.service
+      content: |-
+        [Unit]
+        Description=Renew EchoScript Jenkins HTTPS leaf certificate when near expiry
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/echoscript-jenkins-renew-certificate
+    - name: echoscript-jenkins-certificate-renewal.timer
+      content: |-
+        [Unit]
+        Description=Daily Jenkins certificate renewal check
+        [Timer]
+        OnCalendar=daily
+        Persistent=true
+        [Install]
+        WantedBy=timers.target
+
+- name: Enable daily certificate renewal checks
+  ansible.builtin.systemd_service:
+    name: echoscript-jenkins-certificate-renewal.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Map private controller hostname on controller
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '.*\sjenkins\.internal$'
+    line: "{{ ansible_default_ipv4.address }} jenkins.internal"
+    state: present
+
+- name: Read bootstrap JSON from the role-specific Secrets Manager secret
+  ansible.builtin.command:
+    argv:
+      - aws
+      - secretsmanager
+      - get-secret-value
+      - --secret-id
+      - "{{ jenkins_host_secret_id }}"
+      - --region
+      - "{{ jenkins_host_region }}"
+      - --query
+      - SecretString
+      - --output
+      - text
+  register: jenkins_host_bootstrap_raw
+  changed_when: false
+  no_log: true
+
+- name: Validate bootstrap secret fields
+  ansible.builtin.assert:
+    that:
+      - jenkins_host_admin_user is match('^[A-Za-z0-9_.-]{1,64}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).admin_password is defined
+      - (jenkins_host_bootstrap_raw.stdout | from_json).admin_password is match('^[A-Za-z0-9_-]{32,}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).pr_validator_id is defined
+      - (jenkins_host_bootstrap_raw.stdout | from_json).pr_validator_id is match('^[A-Za-z0-9_.-]{1,64}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).pr_validator_password is match('^[A-Za-z0-9_-]{32,}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_operator_id is defined
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_operator_id is match('^[A-Za-z0-9_.-]{1,64}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_operator_password is match('^[A-Za-z0-9_-]{32,}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_approver_id is defined
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_approver_id is match('^[A-Za-z0-9_.-]{1,64}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_approver_password is match('^[A-Za-z0-9_-]{32,}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).pr_validator_id != (jenkins_host_bootstrap_raw.stdout | from_json).release_operator_id
+      - (jenkins_host_bootstrap_raw.stdout | from_json).pr_validator_id != (jenkins_host_bootstrap_raw.stdout | from_json).release_approver_id
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_operator_id != (jenkins_host_bootstrap_raw.stdout | from_json).release_approver_id
+      - (jenkins_host_bootstrap_raw.stdout | from_json).pr_validator_id != jenkins_host_admin_user
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_operator_id != jenkins_host_admin_user
+      - (jenkins_host_bootstrap_raw.stdout | from_json).release_approver_id != jenkins_host_admin_user
+      - (jenkins_host_bootstrap_raw.stdout | from_json).github_token is defined
+      - (jenkins_host_bootstrap_raw.stdout | from_json).github_token is match('^[A-Za-z0-9_-]{20,}$')
+      - (jenkins_host_bootstrap_raw.stdout | from_json).tf_plan_recipient is match('^age1[0-9a-z]{50,}$')
+    fail_msg: Populate controller secret out of band with unique operator IDs/passwords, admin_password, and github_token.
+  no_log: true
+
+- name: Install controller runtime environment from Secrets Manager
+  ansible.builtin.copy:
+    dest: /etc/echoscript/jenkins/controller.env
+    owner: root
+    group: root
+    mode: '0600'
+    content: |
+      JENKINS_ADMIN_ID={{ jenkins_host_admin_user }}
+      JENKINS_ADMIN_PASSWORD={{ (jenkins_host_bootstrap_raw.stdout | from_json).admin_password }}
+      GITHUB_TOKEN={{ (jenkins_host_bootstrap_raw.stdout | from_json).github_token }}
+      PR_VALIDATOR_ID={{ (jenkins_host_bootstrap_raw.stdout | from_json).pr_validator_id }}
+      PR_VALIDATOR_PASSWORD={{ (jenkins_host_bootstrap_raw.stdout | from_json).pr_validator_password }}
+      RELEASE_OPERATOR_ID={{ (jenkins_host_bootstrap_raw.stdout | from_json).release_operator_id }}
+      RELEASE_OPERATOR_PASSWORD={{ (jenkins_host_bootstrap_raw.stdout | from_json).release_operator_password }}
+      RELEASE_APPROVER_ID={{ (jenkins_host_bootstrap_raw.stdout | from_json).release_approver_id }}
+      RELEASE_APPROVER_PASSWORD={{ (jenkins_host_bootstrap_raw.stdout | from_json).release_approver_password }}
+      TF_PLAN_RECIPIENT={{ (jenkins_host_bootstrap_raw.stdout | from_json).tf_plan_recipient }}
+  no_log: true
+
+- name: Require the configured encrypted Jenkins backup bucket
+  ansible.builtin.assert:
+    that:
+      - jenkins_host_backup_bucket is match('^echoscript-[0-9]{12}-jenkins-backups$')
+    fail_msg: Pass the jenkins_host_backup_bucket output from the Jenkins Terraform root.
+
+- name: Install quiesced Jenkins home backup script
+  ansible.builtin.template:
+    src: backup-jenkins-home.sh.j2
+    dest: /usr/local/sbin/echoscript-jenkins-home-backup
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Install daily Jenkins home backup service and timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/{{ item.name }}
+    owner: root
+    group: root
+    mode: '0644'
+    content: "{{ item.content }}\n"
+  loop:
+    - name: echoscript-jenkins-home-backup.service
+      content: |-
+        [Unit]
+        Description=Quiesce and encrypt EchoScript Jenkins home backup to S3
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/sbin/echoscript-jenkins-home-backup
+        TimeoutStartSec=30m
+    - name: echoscript-jenkins-home-backup.timer
+      content: |-
+        [Unit]
+        Description=Daily EchoScript Jenkins home backup
+        [Timer]
+        OnCalendar=*-*-* 18:30:00 UTC
+        Persistent=true
+        [Install]
+        WantedBy=timers.target
+
+- name: Enable daily Jenkins home backups
+  ansible.builtin.systemd_service:
+    name: echoscript-jenkins-home-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Require externally provisioned bootstrap secret
+  ansible.builtin.command:
+    argv:
+      - aws
+      - secretsmanager
+      - get-secret-value
+      - --secret-id
+      - "{{ jenkins_host_secret_id }}"
+      - --region
+      - "{{ jenkins_host_region }}"
+      - --query
+      - SecretString
+      - --output
+      - text
+  changed_when: false
+  no_log: true
+
+- name: Install pinned Jenkins runtime image composition
+  ansible.builtin.template:
+    src: controller-compose.yml.j2
+    dest: /opt/echoscript-jenkins/compose.yml
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Restart Jenkins controller
+
+- name: Install pinned Jenkins controller plugin image recipe
+  ansible.builtin.template:
+    src: Dockerfile.controller.j2
+    dest: /opt/echoscript-jenkins/Dockerfile
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Restart Jenkins controller
+
+- name: Install controller configuration
+  ansible.builtin.template:
+    src: controller-casc.yml.j2
+    dest: /etc/echoscript/jenkins/casc/jenkins.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Jenkins controller
+
+- name: Install TLS reverse proxy configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/echoscript/jenkins/nginx.conf
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Restart Jenkins controller
+
+- name: Install controller systemd service
+  ansible.builtin.template:
+    src: jenkins-controller.service.j2
+    dest: /etc/systemd/system/echoscript-jenkins.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Jenkins controller
+
+- name: Enable and start controller
+  ansible.builtin.systemd_service:
+    name: echoscript-jenkins
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Check Jenkins HTTPS health and certificate validation
+  ansible.builtin.uri:
+    url: "{{ jenkins_host_controller_url }}/login"
+    method: GET
+    status_code: [200, 403]
+    validate_certs: true
+    ca_path: "{{ jenkins_host_data_mount }}/tls/jenkins-ca.crt"
+  register: jenkins_host_health
+  retries: 20
+  delay: 15
+  until: jenkins_host_health.status in [200, 403]
+
+- name: Install private controller-to-agent bootstrap helper
+  ansible.builtin.copy:
+    src: bootstrap-agent-secrets.py
+    dest: /usr/local/sbin/echoscript-jenkins-bootstrap-agents
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Retrieve generated node tokens and securely initialize agent Secrets Manager values
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/echoscript-jenkins-bootstrap-agents
+      - --env-file
+      - /etc/echoscript/jenkins/controller.env
+      - --ca-file
+      - "{{ jenkins_host_data_mount }}/tls/jenkins-ca.crt"
+      - --url
+      - "{{ jenkins_host_controller_url }}"
+      - --region
+      - "{{ jenkins_host_region }}"
+      - --nodes
+      - "{{ jenkins_host_agent_nodes | default('validation,release') }}"
+  register: jenkins_host_agent_bootstrap_result
+  changed_when: "'updated' in jenkins_host_agent_bootstrap_result.stdout"
+  retries: 20
+  delay: 15
+  until: jenkins_host_agent_bootstrap_result.rc == 0
+  no_log: true

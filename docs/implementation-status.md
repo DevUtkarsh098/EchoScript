@@ -32,6 +32,6 @@ Local follow-up, 2026-11-12: built and ran `giri` in Docker; frontend/API demo u
 ## Next implementation priorities
 
 1. Complete the developer's own Identity Center login, verify account/backend/contact/AMI/policies and review the AWS-only Jenkins provisioning plan within the approved costs in [jenkins-aws-design.md](jenkins-aws-design.md). Preserve the owner-tested transcription service.
-2. Configure approved Jenkins jobs/agents, exact OIDC trust and scoped roles, confirmed existing backend metadata, protected plan decryption/approval, and an external test identity. Run and record real production release/rollback results using [ci-cd.md](ci-cd.md).
+2. Configure approved Jenkins jobs/agents, direct release EC2 role trust and scoped roles, confirmed existing backend metadata, protected plan decryption/approval, and an external test identity. Run and record real production release/rollback results using [ci-cd.md](ci-cd.md).
 3. Decide whether the approved production agent benefits from the tested Ansible workspace role; otherwise keep its toolchain in the Dockerfile. Do not provision chargeable agents without approval.
 4. Verify access isolation and failure recovery, then reconcile billing, alerting, FFmpeg expectations, and the separate video scope.

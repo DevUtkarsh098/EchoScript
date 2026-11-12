@@ -1,5 +1,5 @@
 // Configure this as a separate, restricted Pipeline-from-SCM job on reviewed giri.
-// Never grant PR jobs this label, OIDC token, backend mounts, or approval permission.
+// Never grant PR jobs this label, release instance-profile credentials, backend mounts, or approval permission.
 properties([
     disableConcurrentBuilds(),
     buildDiscarder(logRotator(numToKeepStr: '20')),
@@ -13,13 +13,14 @@ node('echoscript-release') {
     checkout scm
     def flow = load 'ci/pipeline.groovy'
     try {
-        if (!['validate', 'deploy', 'rollback'].contains(params.ACTION)) { error('Unsupported release action.') }
+        def action = params.ACTION ?: 'validate'
+        if (!['validate', 'deploy', 'rollback'].contains(action)) { error('Unsupported release action.') }
         if (env.CHANGE_ID || env.CHANGE_URL) { error('PR builds cannot enter the release job.') }
         sh 'mkdir -p ci-artifacts ci-private; chmod 700 ci-private; git rev-parse HEAD > ci-artifacts/source-commit.txt'
         env.SOURCE_SHA = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
-        env.IMAGE_TAG = params.ACTION == 'rollback' ? params.ROLLBACK_SHA.trim() : env.SOURCE_SHA
+        env.IMAGE_TAG = action == 'rollback' ? params.ROLLBACK_SHA.trim() : env.SOURCE_SHA
         flow.validate()
-        if (params.ACTION != 'validate') {
+        if (action != 'validate') {
             if (!env.RELEASE_APPROVERS || !env.TF_PLAN_RECIPIENT) {
                 error('Configure named Jenkins approvers and the public age recipient before production work.')
             }
@@ -27,6 +28,11 @@ node('echoscript-release') {
                 sh 'test -r "$SMOKE_TOKEN_FILE"; test -r "$SMOKE_AUDIO_FILE"'
                 sh 'git fetch origin giri; test "$(git rev-parse origin/giri)" = "$SOURCE_SHA"'
                 sh 'bash ci/scripts/release.sh verify-tag'
+            }
+            if (action == 'rollback') {
+                stage('Verify immutable rollback images') {
+                    flow.awsRole('JENKINS_PUBLISH_ROLE_ARN') { sh 'bash ci/scripts/release.sh verify-images' }
+                }
             }
             if (params.ACTION == 'deploy') {
                 stage('Publish scanned immutable images') {
@@ -36,7 +42,7 @@ node('echoscript-release') {
             stage('Generate and archive protected Terraform plan') {
                 flow.awsRole('JENKINS_PLAN_ROLE_ARN') {
                     sh 'bash ci/scripts/terraform-init.sh'
-                    sh(params.ACTION == 'rollback' ? 'bash scripts/deploy-frontend.sh prepare-rollback "$IMAGE_TAG"' : 'bash scripts/deploy-frontend.sh prepare "$IMAGE_TAG"')
+                    sh(action == 'rollback' ? 'bash scripts/deploy-frontend.sh prepare-rollback "$IMAGE_TAG"' : 'bash scripts/deploy-frontend.sh prepare "$IMAGE_TAG"')
                     sh 'bash ci/scripts/terraform-plan.sh'
                 }
                 flow.archiveEvidence()
@@ -52,7 +58,7 @@ node('echoscript-release') {
             }
             stage('Publish or restore immutable frontend bundle') {
                 flow.awsRole('JENKINS_FRONTEND_ROLE_ARN') {
-                    sh(params.ACTION == 'rollback' ? 'bash scripts/deploy-frontend.sh rollback "$IMAGE_TAG"' : 'bash scripts/deploy-frontend.sh deploy "$IMAGE_TAG"')
+                    sh(action == 'rollback' ? 'bash scripts/deploy-frontend.sh rollback "$IMAGE_TAG"' : 'bash scripts/deploy-frontend.sh deploy "$IMAGE_TAG"')
                 }
             }
             stage('Health and authenticated transcription acceptance') {

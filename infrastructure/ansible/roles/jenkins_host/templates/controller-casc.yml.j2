@@ -1,0 +1,185 @@
+jenkins:
+  systemMessage: "EchoScript CI. PR validation and protected release are separate jobs and agents."
+  numExecutors: 0
+  mode: EXCLUSIVE
+  slaveAgentPort: -1
+  remotingSecurity:
+    enabled: true
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+        - id: "${PR_VALIDATOR_ID}"
+          password: "${PR_VALIDATOR_PASSWORD}"
+        - id: "${RELEASE_OPERATOR_ID}"
+          password: "${RELEASE_OPERATOR_PASSWORD}"
+        - id: "${RELEASE_APPROVER_ID}"
+          password: "${RELEASE_APPROVER_PASSWORD}"
+  authorizationStrategy:
+    roleBased:
+      roles:
+        global:
+          - name: administrators
+            description: Jenkins administrators
+            permissions:
+              - Overall/Administer
+            entries:
+              - user: "${JENKINS_ADMIN_ID}"
+          - name: authenticated-read
+            description: Authenticated users may view Jenkins and jobs
+            permissions:
+              - Overall/Read
+              - Job/Read
+            entries:
+              - group: authenticated
+        items:
+          - name: pr-builders
+            description: Build only the untrusted PR validation multibranch job
+            pattern: "EchoScript-PR(/.*)?"
+            permissions:
+              - Job/Read
+              - Job/Build
+            entries:
+              - user: "${PR_VALIDATOR_ID}"
+          - name: release-operators
+            description: Start only the protected giri release pipeline
+            pattern: "EchoScript-Release"
+            permissions:
+              - Job/Read
+              - Job/Build
+            entries:
+              - user: "${RELEASE_OPERATOR_ID}"
+          - name: release-approvers
+            description: May approve the explicitly gated production apply
+            pattern: "EchoScript-Release"
+            permissions:
+              - Job/Read
+            entries:
+              - user: "${RELEASE_APPROVER_ID}"
+        agents:
+          - name: validation-agent
+            description: PR-only validation workload
+            pattern: "echoscript-validation"
+            permissions:
+              - Agent/Build
+            entries:
+              - group: anonymous
+              - user: "${PR_VALIDATOR_ID}"
+          - name: release-agent
+            description: Protected release workload
+            pattern: "echoscript-release"
+            permissions:
+              - Agent/Build
+            entries:
+              - user: "${RELEASE_OPERATOR_ID}"
+  nodes:
+    - permanent:
+        name: echoscript-validation
+        numExecutors: 1
+        remoteFS: /home/jenkins/agent
+        labelString: echoscript-validation
+        mode: EXCLUSIVE
+        launcher:
+          inbound:
+            webSocket: true
+            workDirSettings:
+              disabled: false
+              workDirPath: remoting
+              internalDir: remoting
+              failIfWorkDirIsMissing: false
+    - permanent:
+        name: echoscript-release
+        numExecutors: 1
+        remoteFS: /home/jenkins/agent
+        labelString: echoscript-release
+        mode: EXCLUSIVE
+        nodeProperties:
+          - envVars:
+              env:
+                - key: SMOKE_TOKEN_FILE
+                  value: /run/echoscript-secrets/smoke-token
+                - key: SMOKE_AUDIO_FILE
+                  value: /run/echoscript-secrets/smoke-audio
+                - key: RELEASE_APPROVERS
+                  value: "${RELEASE_APPROVER_ID}"
+                - key: TF_PLAN_RECIPIENT
+                  value: "${TF_PLAN_RECIPIENT}"
+        launcher:
+          inbound:
+            webSocket: true
+            workDirSettings:
+              disabled: false
+              workDirPath: remoting
+              internalDir: remoting
+              failIfWorkDirIsMissing: false
+security:
+  queueItemAuthenticator:
+    authenticators:
+      - global:
+          strategy: anonymousAuthorizationStrategy
+unclassified:
+  location:
+    url: https://jenkins.internal:8443/
+    adminAddress: jenkins-admin@localhost
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: SYSTEM
+              id: github-read-token
+              secret: "${GITHUB_TOKEN}"
+              description: GitHub read-only token for branch discovery and checkout
+jobs:
+  - script: |
+      multibranchPipelineJob('EchoScript-PR') {
+        branchSources {
+          branchSource {
+            source {
+              github {
+                id('echoscript-github-pr')
+                repositoryUrl('https://github.com/{{ jenkins_host_github_owner }}/{{ jenkins_host_github_repository }}')
+                configuredByUrl(true)
+                repoOwner('{{ jenkins_host_github_owner }}')
+                repository('{{ jenkins_host_github_repository }}')
+                credentialsId('github-read-token')
+                traits {
+                  gitHubBranchDiscovery { strategyId(1) }
+                  gitHubPullRequestDiscovery { strategyId(1) }
+                }
+              }
+            }
+          }
+        }
+        factory { workflowBranchProjectFactory { scriptPath('ci/Jenkinsfile.validation') } }
+        triggers {
+          periodicFolderTrigger {
+            interval('2m')
+          }
+        }
+      }
+      pipelineJob('EchoScript-Release') {
+        disabled(false)
+        configure { job ->
+          job / 'properties' / 'org.jenkinsci.plugins.authorizeproject.AuthorizeProjectProperty' {
+            strategy(class: 'org.jenkinsci.plugins.authorizeproject.strategy.SpecificUsersAuthorizationStrategy') {
+              userid(System.getenv('RELEASE_OPERATOR_ID'))
+              dontRestrictJobConfiguration(false)
+            }
+          }
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/{{ jenkins_host_github_owner }}/{{ jenkins_host_github_repository }}.git'); credentials('github-read-token') }
+                branch('*/{{ jenkins_host_github_branch }}')
+              }
+            }
+            scriptPath('ci/Jenkinsfile.delivery')
+            lightweight(true)
+          }
+        }
+      }

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+tls={{ (jenkins_host_data_mount ~ '/tls') | quote }}
+if openssl x509 -checkend 2592000 -noout -in "$tls/jenkins.crt" >/dev/null 2>&1; then
+  exit 0
+fi
+tmp=$(mktemp -d "$tls/.renew.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+openssl req -new -newkey rsa:3072 -nodes -keyout "$tmp/jenkins.key" \
+  -out "$tmp/jenkins.csr" -subj /CN=jenkins.internal
+cat > "$tmp/extensions.cnf" <<'EOF'
+subjectAltName=DNS:jenkins.internal
+extendedKeyUsage=serverAuth
+keyUsage=digitalSignature,keyEncipherment
+EOF
+openssl x509 -req -in "$tmp/jenkins.csr" -CA "$tls/jenkins-ca.crt" \
+  -CAkey "$tls/ca.key" -CAcreateserial -days 397 -sha256 \
+  -extfile "$tmp/extensions.cnf" -out "$tmp/jenkins.crt"
+chmod 0600 "$tmp/jenkins.key"
+install -o root -g root -m 0600 "$tmp/jenkins.key" "$tls/jenkins.key.new"
+install -o root -g root -m 0644 "$tmp/jenkins.crt" "$tls/jenkins.crt.new"
+mv "$tls/jenkins.key.new" "$tls/jenkins.key"
+mv "$tls/jenkins.crt.new" "$tls/jenkins.crt"
+if systemctl is-active --quiet echoscript-jenkins; then
+  systemctl restart echoscript-jenkins
+fi
+echo renewed

@@ -11,8 +11,8 @@ def validate() {
 
 def awsRole(String variable, Closure action) {
     def role = env[variable]
-    def mode = env.AWS_JENKINS_CREDENTIAL_MODE ?: 'oidc'
-    if (!role || (mode == 'oidc' && !env.AWS_WEB_IDENTITY_TOKEN_FILE)) {
+    def mode = env.AWS_JENKINS_CREDENTIAL_MODE ?: 'ec2-instance-profile'
+    if (!role || mode != 'ec2-instance-profile') {
         error('Configure an approved Jenkins machine identity; no developer SSO or static-key fallback.')
     }
     def machineProfile = mode == 'ec2-instance-profile' ? "jenkins-${role.tokenize('/').last().replace('echoscript-jenkins-', '')}" : ''

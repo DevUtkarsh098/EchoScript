@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "ci" / "scripts" / "scan-secrets.sh"
 
 
+@unittest.skipUnless(os.name != 'nt', 'Bash shell integration tests require a POSIX runner')
 class SecretScanTests(unittest.TestCase):
     def run_scan(self, scanner_exit):
         with tempfile.TemporaryDirectory() as tmp:

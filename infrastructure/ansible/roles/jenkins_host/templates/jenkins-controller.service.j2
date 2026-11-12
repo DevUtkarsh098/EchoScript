@@ -1,0 +1,17 @@
+[Unit]
+Description=EchoScript Jenkins controller
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/echoscript-jenkins
+EnvironmentFile=/etc/echoscript/jenkins/controller.env
+ExecStart=/usr/bin/docker compose --env-file /etc/echoscript/jenkins/controller.env -f /opt/echoscript-jenkins/compose.yml up -d
+ExecStop=/usr/bin/docker compose --env-file /etc/echoscript/jenkins/controller.env -f /opt/echoscript-jenkins/compose.yml stop
+ExecStartPost=/usr/bin/curl --fail --silent --show-error --retry 60 --retry-connrefused --retry-delay 5 --max-time 10 --cacert {{ jenkins_host_data_mount }}/tls/jenkins-ca.crt https://jenkins.internal:8443/login
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

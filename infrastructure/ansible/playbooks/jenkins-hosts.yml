@@ -1,7 +1,43 @@
----
-- name: Configure an explicitly approved AWS Jenkins host foundation
-  hosts: jenkins_disposable:jenkins_controller:jenkins_agents
+﻿---
+- name: Validate the approved disposable Jenkins host before production hosts
+  hosts: jenkins_disposable
   become: true
   gather_facts: true
   roles:
     - role: jenkins_host
+
+- name: Configure and initialize Jenkins controller before agents
+  hosts: jenkins_controller
+  become: true
+  gather_facts: true
+  roles:
+    - role: jenkins_host
+
+- name: Configure stopped validation and release agents after controller bootstrap
+  hosts: jenkins_agents
+  become: true
+  gather_facts: true
+  roles:
+    - role: jenkins_host
+
+- name: Verify both explicitly started agents are online over trusted HTTPS
+  hosts: jenkins_controller
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for validation and release nodes to connect
+      ansible.builtin.command:
+        argv:
+          - /usr/local/sbin/echoscript-jenkins-bootstrap-agents
+          - --env-file
+          - /etc/echoscript/jenkins/controller.env
+          - --ca-file
+          - "{{ jenkins_host_data_mount | default('/mnt/jenkins-data') }}/tls/jenkins-ca.crt"
+          - --url
+          - https://jenkins.internal:8443
+          - --region
+          - "{{ jenkins_host_region | default('us-west-2') }}"
+          - --verify-online
+      changed_when: false
+      no_log: true
+      when: jenkins_agent_start | default(false) | bool

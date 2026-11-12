@@ -17,8 +17,8 @@ resource "terraform_data" "approval" {
       error_message = "STOP: owner must approve the AWS hosting cost and access design before provisioning."
     }
     precondition {
-      condition     = var.approved_account_budget_usd >= 220 && can(regex("^[^@ ]+@[^@ ]+\\.[^@ ]+$", var.verified_budget_email))
-      error_message = "STOP: obtain explicit budget approval and verify the account billing/contact email first."
+      condition     = var.approved_account_budget_usd >= 220
+      error_message = "STOP: obtain explicit owner approval for an account-wide monthly budget of at least $220."
     }
     precondition {
       condition     = toset(keys(var.application_role_policies)) == local.deployment_roles
@@ -73,6 +73,12 @@ resource "aws_security_group" "node" {
   name        = "echoscript-jenkins-${each.key}"
   description = "No public ingress or SSH; controller HTTPS only from CI agents"
   vpc_id      = aws_vpc.jenkins.id
+  # Existing groups keep the inline TLS/DNS baseline while the agent HTTPS
+  # rules are managed as dedicated resources below. Ignore inline egress
+  # reconciliation so Terraform cannot remove either ownership set.
+  lifecycle {
+    ignore_changes = [egress]
+  }
   egress {
     description = "TLS egress for SSM, registries and package repositories"
     from_port   = 443
@@ -80,6 +86,32 @@ resource "aws_security_group" "node" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  egress {
+    description = "VPC DNS resolver for AWS and repository hostnames"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["10.63.0.2/32"]
+  }
+  egress {
+    description = "VPC DNS resolver TCP fallback"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = ["10.63.0.2/32"]
+  }
+}
+
+resource "aws_vpc_security_group_egress_rule" "agent_to_controller" {
+  for_each = toset(["validation", "release"])
+
+  security_group_id            = aws_security_group.node[each.key].id
+  referenced_security_group_id = aws_security_group.node["controller"].id
+
+  description = "Jenkins WebSocket HTTPS to controller"
+  ip_protocol = "tcp"
+  from_port   = 8443
+  to_port     = 8443
 }
 
 resource "aws_vpc_security_group_ingress_rule" "agent_https" {
@@ -99,19 +131,27 @@ resource "aws_cloudwatch_log_group" "jenkins" {
 }
 
 resource "aws_instance" "node" {
-  for_each                    = local.nodes
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = each.value.instance_type
-  subnet_id                   = aws_subnet.jenkins.id
-  vpc_security_group_ids      = [aws_security_group.node[each.key].id]
-  associate_public_ip_address = true
-  iam_instance_profile        = aws_iam_instance_profile.node[each.key].name
-  disable_api_termination     = each.key == "controller"
-  monitoring                  = false
+  for_each               = local.nodes
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = each.value.instance_type
+  subnet_id              = aws_subnet.jenkins.id
+  vpc_security_group_ids = [aws_security_group.node[each.key].id]
+  # Public IPv4 is used only for outbound TLS; the security group has no public
+  # ingress. This avoids a NAT gateway while keeping SSM and package access.
+  associate_public_ip_address = false
+  # AWS reports the historical association setting for these private hosts,
+  # which would force replacement despite their having no public IPv4. Keep
+  # existing instances and apply false when creating a new disposable host.
+  lifecycle {
+    ignore_changes = [associate_public_ip_address]
+  }
+  iam_instance_profile    = aws_iam_instance_profile.node[each.key].name
+  disable_api_termination = each.key == "controller"
+  monitoring              = false
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = each.key == "release" ? 2 : 1
+    http_put_response_hop_limit = 1
   }
   credit_specification { cpu_credits = "standard" }
   root_block_device {

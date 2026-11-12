@@ -31,27 +31,61 @@
       - curl
       - docker.io
       - docker-compose-v2
+      - openssl
       - jq
       - python3
+      - unzip
       - unattended-upgrades
     state: present
     update_cache: true
     cache_valid_time: 3600
+
+- name: Download the official AWS CLI v2 installer
+  ansible.builtin.get_url:
+    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    dest: /tmp/awscliv2.zip
+    mode: '0644'
+
+- name: Extract the official AWS CLI v2 installer
+  ansible.builtin.unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/aws/install
+  when: not ansible_check_mode
+
+- name: Install AWS CLI v2
+  ansible.builtin.command:
+    cmd: /tmp/aws/install --install-dir /usr/local/aws-cli --bin-dir /usr/local/bin
+    creates: /usr/local/bin/aws
+  when: not ansible_check_mode
 
 - name: Keep Docker available on the dedicated Jenkins host
   ansible.builtin.systemd_service:
     name: docker
     enabled: true
     state: started
+  when: not ansible_check_mode
 
-- name: Configure Docker log rotation
+- name: Configure Docker daemon logging before restart
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
     owner: root
     group: root
     mode: '0644'
-    content: |
-      {"log-driver":"local","log-opts":{"max-size":"10m","max-file":"3"}}
+    content: '{"log-driver":"local","log-opts":{"max-size":"10m","max-file":"3"}}'
+  notify: Restart Docker
+
+- name: Configure Jenkins controller runtime
+  ansible.builtin.import_tasks: controller.yml
+  when: jenkins_host_role == 'controller'
+
+- name: Configure isolated inbound agent runtime
+  ansible.builtin.import_tasks: agent.yml
+  when: jenkins_host_role in ['validation', 'release']
+
+- name: Apply pending Docker configuration
+  ansible.builtin.meta: flush_handlers
 
 - name: Create root-owned configuration directories
   ansible.builtin.file:

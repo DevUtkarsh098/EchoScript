@@ -4,11 +4,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 mkdir -p ci-artifacts
 TAG="$(git rev-parse HEAD)"
-TOOLS_IMAGE="${TOOLS_IMAGE:-echoscript-ci-tools:local}"
+IMAGE_DIR="${IMAGE_DIR:-$ROOT/ci-private/images}"
+mkdir -p "$IMAGE_DIR"
 TF_DIR=infrastructure/terraform/single-account
 case "${1:?validation stage required}" in
   tools)
-    git --version; docker --version; docker buildx version; node --version; npm --version; python3 --version
+    git --version; buildctl --version; skopeo --version; node --version; npm --version; python3 --version
     terraform version; trivy --version; aws --version; ansible --version; ansible-lint --version
     ;;
   frontend)
@@ -16,14 +17,10 @@ case "${1:?validation stage required}" in
       && npm audit --audit-level=high --json > "$ROOT/ci-artifacts/npm-audit.json")
     ;;
   api)
-    docker build --platform linux/amd64 -t "echoscript-api:$TAG" services/ingest-service
-    docker run --rm --entrypoint python3.12 "echoscript-api:$TAG" -m pytest -q tests
+    bash ci/scripts/buildkit-build.sh services/ingest-service services/ingest-service/Dockerfile ci-test
     ;;
   worker)
-    docker build --platform linux/amd64 -t "echoscript-worker:$TAG" services/transcribe-worker
-    docker build --build-arg "WORKER_IMAGE=echoscript-worker:$TAG" \
-      -f "$ROOT/ci/worker-tests.Dockerfile" -t "echoscript-worker-tests:$TAG" services/transcribe-worker
-    docker run --rm "echoscript-worker-tests:$TAG"
+    bash ci/scripts/buildkit-build.sh services/transcribe-worker services/transcribe-worker/Dockerfile ci-test
     ;;
   terraform)
     # PR checks NEVER initialize the production backend or receive AWS credentials.
@@ -36,15 +33,19 @@ case "${1:?validation stage required}" in
     ;;
   ansible)
     # No Docker socket, AWS files, SSH keys, or production inventory in this target.
-    docker build --build-arg "TOOLS_IMAGE=$TOOLS_IMAGE" -f ci/ansible-test.Dockerfile -t "echoscript-ansible-test:$TAG" .
-    docker run --rm "echoscript-ansible-test:$TAG"
+    buildctl --addr "$BUILDKIT_HOST" build --frontend dockerfile.v0 --local context=. --local dockerfile=. \
+      --opt filename=ci/ansible-test.Dockerfile
     ;;
   secrets)
     bash ci/scripts/scan-secrets.sh
     python3 -m unittest discover -s ci/tests -p 'test_*.py'
     ;;
   images)
-    docker build --platform linux/amd64 -t "echoscript-frontend:$TAG" frontend
+    bash ci/scripts/buildkit-build.sh frontend frontend/Dockerfile '' "echoscript-frontend:$TAG" "$IMAGE_DIR/frontend.tar"
+    bash ci/scripts/buildkit-build.sh services/ingest-service services/ingest-service/Dockerfile '' \
+      "echoscript-api:$TAG" "$IMAGE_DIR/api.tar"
+    bash ci/scripts/buildkit-build.sh services/transcribe-worker services/transcribe-worker/Dockerfile '' \
+      "echoscript-worker:$TAG" "$IMAGE_DIR/worker.tar"
     # Static bundles do not retain package-lock metadata in the runtime image.
     # Scan the locked JS dependency graph too, including build/test tools.
     trivy fs --scanners vuln --include-dev-deps --ignorefile= --severity HIGH,CRITICAL --exit-code 1 \
@@ -52,7 +53,7 @@ case "${1:?validation stage required}" in
       --output ci-artifacts/trivy-frontend-dependencies.json frontend
     for component in api worker frontend; do
       trivy image --scanners vuln --ignorefile= --severity HIGH,CRITICAL --exit-code 1 \
-        --format json --output "ci-artifacts/trivy-${component}.json" "echoscript-${component}:$TAG"
+        --format json --output "ci-artifacts/trivy-${component}.json" --input "$IMAGE_DIR/${component}.tar"
     done
     ;;
   *) echo 'Unknown validation stage' >&2; exit 2 ;;

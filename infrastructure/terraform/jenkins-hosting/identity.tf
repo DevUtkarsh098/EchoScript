@@ -44,7 +44,13 @@ resource "aws_iam_role_policy" "host" {
         Effect   = "Allow", Action = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"],
         Resource = [for repository in aws_ecr_repository.jenkins : repository.arn]
       }
-      ], each.key == "release" ? [{
+      ], each.key == "controller" ? [{
+        Effect   = "Allow", Action = ["s3:PutObject", "s3:GetObject"],
+        Resource = "${aws_s3_bucket.jenkins_backup.arn}/jenkins-home/*"
+        }] : [], each.key == "controller" ? [{
+        Effect   = "Allow", Action = ["secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue"],
+        Resource = [aws_secretsmanager_secret.node["validation"].arn, aws_secretsmanager_secret.node["release"].arn]
+        }] : [], each.key == "release" ? [{
         Effect = "Allow", Action = ["sts:AssumeRole"], Resource = [for role in aws_iam_role.deployment : role.arn]
     }] : [])
   })

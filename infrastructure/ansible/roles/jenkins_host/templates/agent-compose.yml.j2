@@ -1,0 +1,70 @@
+services:
+  buildkit:
+    image: {{ jenkins_host_buildkit_image }}
+    container_name: echoscript-jenkins-buildkit
+    command: ["--addr=tcp://0.0.0.0:1234"]
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
+{% if jenkins_host_role == 'validation' %}
+    security_opt: ["seccomp=unconfined", "apparmor=echoscript-buildkit-rootless", "systempaths=unconfined"]
+{% else %}
+    security_opt: ["seccomp=unconfined", "apparmor=unconfined", "systempaths=unconfined"]
+{% endif %}
+    volumes:
+      - buildkit-state:/home/user/.local/share/buildkit
+    expose: [1234]
+    healthcheck:
+      test: [CMD, buildctl, --addr, tcp://127.0.0.1:1234, debug, workers]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+{% if jenkins_host_role == 'release' %}
+    ports: ["127.0.0.1:1234:1234"]
+{% endif %}
+    networks: [builder]
+  agent:
+    image: {{ jenkins_host_agent_image }}
+    container_name: echoscript-jenkins-agent
+    restart: unless-stopped
+    init: true
+    environment:
+      JENKINS_URL: {{ jenkins_host_controller_url | to_json }}
+      JENKINS_AGENT_NAME: {{ ('echoscript-' ~ jenkins_host_role) | to_json }}
+      JENKINS_SECRET: ${JENKINS_AGENT_SECRET:?agent secret missing}
+      JENKINS_WEB_SOCKET: "true"
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+{% if jenkins_host_role == 'release' %}
+      BUILDKIT_HOST: tcp://127.0.0.1:1234
+{% else %}
+      BUILDKIT_HOST: tcp://buildkit:1234
+{% endif %}
+{% if jenkins_host_role == 'release' %}
+      SMOKE_TOKEN_FILE: /run/echoscript-secrets/smoke-token
+      SMOKE_AUDIO_FILE: /run/echoscript-secrets/smoke-audio
+{% endif %}
+    volumes:
+      - /var/lib/echoscript-agent:/home/jenkins/agent
+      - /etc/echoscript/jenkins/jenkins-ca.crt:/run/jenkins/jenkins-ca.crt:ro
+{% if jenkins_host_role == 'release' %}
+      - /etc/echoscript/jenkins/secrets:/run/echoscript-secrets:ro
+{% endif %}
+    security_opt: [no-new-privileges:true]
+    read_only: true
+{% if jenkins_host_role == 'validation' %}
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=2g"]
+{% else %}
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=512m"]
+{% endif %}
+{% if jenkins_host_role == 'release' %}
+    network_mode: host
+{% else %}
+    extra_hosts: ["jenkins.internal:{{ jenkins_host_controller_private_ip }}"]
+    networks: [builder]
+{% endif %}
+volumes:
+  buildkit-state:
+    name: echoscript-buildkit-{{ jenkins_host_role }}-state
+networks:
+  builder:
+    name: echoscript-jenkins-{{ jenkins_host_role }}-builder

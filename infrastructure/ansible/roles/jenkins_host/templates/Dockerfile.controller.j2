@@ -1,0 +1,11 @@
+FROM {{ jenkins_host_controller_image }}
+USER root
+RUN jenkins-plugin-cli --plugins \
+    configuration-as-code:2147.v8a_8d38668c72 \
+    role-strategy:928.vc60b_edb_fea_e1 \
+    github-branch-source:1986.v801e40614d00 \
+    job-dsl:3732.v9a_c49a_61a_313 \
+    workflow-multibranch:842.v3a_b_59b_57b_e6e \
+    workflow-aggregator:608.v67378e9d3db_1 \
+    authorize-project:534.v2f208c45e11c
+USER jenkins

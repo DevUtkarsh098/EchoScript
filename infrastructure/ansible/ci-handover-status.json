@@ -1,0 +1,9 @@
+{
+  "DocumentName": "AWS-RunShellScript",
+  "InstanceIds": ["i-04679796fc7bb80fe"],
+  "Parameters": {
+    "commands": [
+      "set -eu; docker exec echoscript-jenkins-agent sh -ec 'mkdir -p /tmp/echoscript-buildkit-smoke/out; printf "FROM scratch\\nCOPY hello.txt /hello.txt\\n" > /tmp/echoscript-buildkit-smoke/Containerfile; printf "BuildKit smoke\\n" > /tmp/echoscript-buildkit-smoke/hello.txt'; docker exec echoscript-jenkins-agent buildctl --addr tcp://buildkit:1234 build --frontend dockerfile.v0 --local context=/tmp/echoscript-buildkit-smoke --local dockerfile=/tmp/echoscript-buildkit-smoke --opt filename=Containerfile --output type=local,dest=/tmp/echoscript-buildkit-smoke/out >/dev/null; docker exec echoscript-jenkins-agent sh -ec 'grep -qx "BuildKit smoke" /tmp/echoscript-buildkit-smoke/out/hello.txt && echo actual-agent-buildkit=passed; rm -rf /tmp/echoscript-buildkit-smoke'"
+    ]
+  }
+}

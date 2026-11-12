@@ -8,9 +8,6 @@ from pathlib import Path
 
 ACCOUNT = '598391748654'
 REGION = 'us-west-2'
-ARN = f'arn:aws'
-
-
 def statement(actions, resources, condition=None):
     value = {'Effect': 'Allow', 'Action': actions, 'Resource': resources}
     if condition:
@@ -43,8 +40,15 @@ def policies(args):
                    f'arn:aws:ecs:{REGION}:{ACCOUNT}:cluster/echoscript-prod-workers'], regional),
         statement(['ecr:DescribeRepositories', 'ecr:DescribeImages', 'ecr:GetLifecyclePolicy', 'ecr:ListTagsForResource'], ecr, regional),
         statement(['iam:GetRole', 'iam:GetRolePolicy', 'iam:ListRolePolicies', 'iam:ListAttachedRolePolicies'], roles),
-        statement(['s3:GetBucket*', 's3:GetEncryptionConfiguration', 's3:GetLifecycleConfiguration', 's3:ListBucket'],
+        # Terraform refreshes only these configured bucket controls. Keep object
+        # listing out of the application bucket reads; state listing is scoped above.
+        statement(['s3:GetBucketLocation', 's3:GetBucketVersioning', 's3:GetEncryptionConfiguration',
+                   's3:GetBucketPublicAccessBlock', 's3:GetBucketOwnershipControls', 's3:GetBucketCORS',
+                   's3:GetBucketTagging'],
                   [f'arn:aws:s3:::echoscript-{ACCOUNT}-prod-{kind}' for kind in ('input', 'output', 'web')]),
+        statement(['s3:GetLifecycleConfiguration'],
+                  [f'arn:aws:s3:::echoscript-{ACCOUNT}-prod-{kind}' for kind in ('input', 'output')]),
+        statement(['s3:GetBucketPolicy'], [web]),
         statement(['s3:GetObject'], [f'{web}/releases/*']),
         statement(['dynamodb:DescribeTable', 'dynamodb:DescribeContinuousBackups', 'dynamodb:DescribeTimeToLive', 'dynamodb:ListTagsOfResource'],
                   [f'arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/echoscript-prod-*'], regional),
@@ -52,11 +56,18 @@ def policies(args):
         statement(['sqs:GetQueueAttributes', 'sqs:ListQueueTags'], [f'arn:aws:sqs:{REGION}:{ACCOUNT}:echoscript-prod-*'], regional),
         statement(['lambda:GetFunction', 'lambda:GetFunctionCodeSigningConfig', 'lambda:GetPolicy', 'lambda:ListTags'],
                   [f'arn:aws:lambda:{REGION}:{ACCOUNT}:function:echoscript-prod-*'], regional),
-        statement(['lambda:GetEventSourceMapping', 'lambda:ListEventSourceMappings'], ['*'], regional),
+        statement(['lambda:GetEventSourceMapping'], [f'arn:aws:lambda:{REGION}:{ACCOUNT}:event-source-mapping:*'], regional),
+        statement(['lambda:ListEventSourceMappings'], ['*'], regional),
         statement(['states:DescribeStateMachine', 'states:ListTagsForResource'], [workflow], regional),
-        statement(['logs:DescribeLogGroups', 'logs:ListTagsForResource'], ['*'], regional),
+        statement(['logs:DescribeLogGroups'], ['*'], regional),
+        statement(['logs:ListTagsForResource'], [
+            f'arn:aws:logs:{REGION}:{ACCOUNT}:log-group:/ecs/echoscript-prod-*',
+            f'arn:aws:logs:{REGION}:{ACCOUNT}:log-group:/aws/lambda/echoscript-prod-*',
+        ], regional),
         statement(['cloudfront:GetDistribution', 'cloudfront:GetDistributionConfig', 'cloudfront:ListTagsForResource'], [cf]),
-        statement(['cloudfront:GetOriginAccessControl'], ['*']),
+        # OAC IDs are not a renderer input, so scope to the OAC resource type
+        # in this account rather than all CloudFront resource types.
+        statement(['cloudfront:GetOriginAccessControl'], [f'arn:aws:cloudfront::{ACCOUNT}:origin-access-control/*']),
         statement(['cognito-idp:DescribeUserPool', 'cognito-idp:DescribeUserPoolClient', 'cognito-idp:DescribeUserPoolDomain',
                    'cognito-idp:ListTagsForResource'], [args.user_pool_arn], regional),
         statement(['budgets:ViewBudget'], [f'arn:aws:budgets::{ACCOUNT}:budget/*']),
@@ -64,12 +75,18 @@ def policies(args):
     deploy = [
         statement(['s3:PutObject'], [f'{state_bucket}/{args.state_key}']),
         statement(['ecs:UpdateExpressGatewayService'], [args.api_service_arn], regional),
-        # ECS RegisterTaskDefinition has no existing resource ARN; constrain the family
-        # through the reviewed saved plan and a dedicated trusted release job.
-        statement(['ecs:RegisterTaskDefinition'], ['*'], regional),
+        # Registration supports task-definition resource scoping; allow revisions
+        # only for the existing worker family.
+        statement(['ecs:RegisterTaskDefinition'],
+                  [f'arn:aws:ecs:{REGION}:{ACCOUNT}:task-definition/echoscript-prod-transcribe-worker:*'], regional),
         statement(['ecs:DeregisterTaskDefinition', 'ecs:TagResource'],
                   [f'arn:aws:ecs:{REGION}:{ACCOUNT}:task-definition/echoscript-prod-transcribe-worker:*'], regional),
         statement(['states:UpdateStateMachine'], [workflow], regional),
+        # Required today: orchestration.tf's state_machine inline policy embeds
+        # the versioned worker task-definition ARN and changes on worker release.
+        # PutRolePolicy has no policy-name condition, so this grants replacement
+        # of any inline policy on this one role. Prefer stable task-family scoping
+        # or an admin-owned policy update path to remove this release permission.
         statement(['iam:PutRolePolicy'], [f'arn:aws:iam::{ACCOUNT}:role/echoscript-prod-workflow']),
         statement(['iam:PassRole'], [f'arn:aws:iam::{ACCOUNT}:role/echoscript-prod-{suffix}' for suffix in
                   ('api-execution', 'api-task', 'api-express-infrastructure', 'worker-execution', 'worker-task')],
@@ -83,8 +100,12 @@ def policies(args):
                                'ecr:InitiateLayerUpload', 'ecr:UploadLayerPart', 'ecr:CompleteLayerUpload', 'ecr:PutImage'], ecr, regional)],
         'plan': state + [lock] + read,
         'deploy': state + [lock] + read + deploy,
-        'frontend': state + [statement(['s3:ListBucket'], [web]),
-                            statement(['s3:GetObject', 's3:PutObject'], [f'{web}/*']),
+        'frontend': [
+                            # aws s3 sync to the bucket root lists with prefix="";
+                            # this is the narrowest compatible ListBucket scope.
+                            statement(['s3:ListBucket'], [web], {'StringEquals': {'s3:prefix': ''}}),
+                            statement(['s3:GetObject'], [f'{web}/releases/*']),
+                            statement(['s3:PutObject'], [f'{web}/index.html', f'{web}/assets/*', f'{web}/releases/*']),
                             statement(['cloudfront:CreateInvalidation', 'cloudfront:GetInvalidation'], [cf])],
         'smoke': [statement(['states:DescribeExecution'],
                            [f'arn:aws:states:{REGION}:{ACCOUNT}:execution:echoscript-prod-transcription:*'], regional)],
@@ -93,7 +114,7 @@ def policies(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for flag in ('state-bucket', 'state-key', 'lock-table', 'distribution', 'api-service-arn', 'user-pool-arn', 'oidc-issuer', 'oidc-audience', 'oidc-subject'):
+    for flag in ('state-bucket', 'state-key', 'lock-table', 'distribution', 'api-service-arn', 'user-pool-arn'):
         parser.add_argument('--' + flag, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
@@ -102,16 +123,9 @@ def main():
             parser.error('Supply exact, confirmed metadata and trust claims without wildcards')
     assert args.api_service_arn.startswith(f'arn:aws:ecs:{REGION}:{ACCOUNT}:service/')
     assert args.user_pool_arn.startswith(f'arn:aws:cognito-idp:{REGION}:{ACCOUNT}:userpool/')
-    issuer = args.oidc_issuer.removeprefix('https://').rstrip('/')
     args.output.mkdir(parents=True, exist_ok=True)
     for name, statements in policies(args).items():
         (args.output / f'{name}.json').write_text(json.dumps({'Version': '2012-10-17', 'Statement': statements}, indent=2))
-    trust = {'Version': '2012-10-17', 'Statement': [{
-        'Effect': 'Allow', 'Principal': {'Federated': f'arn:aws:iam::{ACCOUNT}:oidc-provider/{issuer}'},
-        'Action': 'sts:AssumeRoleWithWebIdentity',
-        'Condition': {'StringEquals': {f'{issuer}:aud': args.oidc_audience, f'{issuer}:sub': args.oidc_subject}},
-    }]}
-    (args.output / 'trust.json').write_text(json.dumps(trust, indent=2))
 
 
 if __name__ == '__main__':

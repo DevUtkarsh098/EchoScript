@@ -1,0 +1,28 @@
+---
+- name: Configure and explicitly start isolated Jenkins agents
+  hosts: jenkins_agents
+  become: true
+  gather_facts: true
+  roles:
+    - role: jenkins_host
+
+- name: Verify both agents connect with trusted HTTPS
+  hosts: jenkins_controller
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for validation and release nodes to connect
+      ansible.builtin.command:
+        argv:
+          - /usr/local/sbin/echoscript-jenkins-bootstrap-agents
+          - --env-file
+          - /etc/echoscript/jenkins/controller.env
+          - --ca-file
+          - "{{ jenkins_host_data_mount | default('/mnt/jenkins-data') }}/tls/jenkins-ca.crt"
+          - --url
+          - "{{ jenkins_host_controller_url | default('https://jenkins.internal:8443') }}"
+          - --region
+          - "{{ jenkins_host_region | default('us-west-2') }}"
+          - --verify-online
+      changed_when: false
+      no_log: true

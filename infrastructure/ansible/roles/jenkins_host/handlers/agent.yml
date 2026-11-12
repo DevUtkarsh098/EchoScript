@@ -1,0 +1,7 @@
+---
+- name: Restart Jenkins agent
+  ansible.builtin.systemd_service:
+    name: echoscript-jenkins-agent
+    state: restarted
+    daemon_reload: true
+  when: jenkins_host_agent_was_active | default(false)

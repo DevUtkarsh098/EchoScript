@@ -91,10 +91,9 @@ For the approved scope, replace the static k3s examples with parameterized inven
 
 ## Git and handoff
 
-- GitHub repository: <https://github.com/Girirraju/EchoScript>.
-- Handover/deployment branch: `imran`.
-- Last deployed-code commit before this documentation update: `f689f2f` (`Preserve workflow input after transcription`).
-- At the last comparison, `imran` was 12 commits ahead of and 1 commit behind `main`. Review/merge through a pull request; do not force-push or rewrite history.
+- Authoritative GitHub repository for the current Jenkins CI/CD work: <https://github.com/DevUtkarsh098/EchoScript>.
+- Current integration/release branch: `giri`; `myrepo` is the push remote. The legacy `origin` remote remains untouched and may still point at `Girirraju/EchoScript`.
+- Older handover/deployment history for `imran` and its comparison with `main` is historical and is not the active CI/CD source.
 - The deployment changes are summarized in [docs/developer-handover-changes.md](docs/developer-handover-changes.md). Update this handover and [docs/implementation-status.md](docs/implementation-status.md) as acceptance checks pass.
 
 ## Release and completion criteria

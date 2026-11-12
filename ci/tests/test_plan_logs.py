@@ -2,6 +2,7 @@ import io
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import tarfile
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 
+@unittest.skipUnless(shutil.which('age') and shutil.which('age-keygen'), 'age/age-keygen are required for encrypted archive integration test')
 class ProtectedLogTests(unittest.TestCase):
     def test_diagnostics_are_encrypted_and_not_printed(self):
         with tempfile.TemporaryDirectory() as tmp:

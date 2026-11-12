@@ -7,6 +7,10 @@ node('echoscript-validation') {
         sh 'mkdir -p ci-artifacts; git rev-parse HEAD > ci-artifacts/source-commit.txt'
         flow.validate()
     } finally {
-        flow.archiveEvidence()
+        try {
+            flow.archiveEvidence()
+        } finally {
+            sh 'python3 ci/scripts/clean-private.py'
+        }
     }
 }

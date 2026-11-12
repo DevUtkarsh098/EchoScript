@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+bucket={{ jenkins_host_backup_bucket | quote }}
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+service=echoscript-jenkins
+was_active=0
+if systemctl is-active --quiet "$service"; then was_active=1; fi
+restart_controller() {
+  if [[ "$was_active" == 1 ]]; then systemctl start "$service"; fi
+}
+trap restart_controller EXIT
+systemctl stop "$service"
+tar --numeric-owner --acls --xattrs -C {{ (jenkins_host_data_mount ~ '/home') | quote }} -czf - . \
+  | aws s3 cp - "s3://${bucket}/jenkins-home/${stamp}.tar.gz" --sse AES256 --region {{ jenkins_host_region | quote }}
+echo "Jenkins home backup uploaded: ${stamp}.tar.gz"

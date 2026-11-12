@@ -22,7 +22,7 @@ This document records the recovery, deployment, and verification changes availab
 ### Cost approval follow-up, 2026-11-11
 
 - Owner approved the proposed $70–$85/month Jenkins hosting increment, $220/month account budget and $2 disposable AWS test with “cost approved do that”; reference `owner-chat-2026-11-11-cost-approved`. Updated the cost model and status; no further cost confirmation is required within this scope.
-- AWS CLI still lists no profiles. Requested the developer's own `giri` Identity Center configuration/login; browser automation was unavailable. No credentials were copied and no cloud provisioning, backend initialization or budget update occurred. Verified contact email, backend, AMI and policies still require authenticated access. Runtime implementation and live acceptance checks remain pending.
+- AWS CLI still lists no profiles. Requested the developer's own `giri` Identity Center configuration/login; browser automation was unavailable. No credentials were copied and no cloud provisioning, backend initialization or budget update occurred. Backend, AMI and policies still require authenticated access. Runtime implementation and live acceptance checks remain pending.
 
 ### AWS-only hosting follow-up, 2026-11-11
 
@@ -36,7 +36,7 @@ This document records the recovery, deployment, and verification changes availab
 ### giri CI/CD implementation, 2026-11-11
 
 - Created `giri` from `imran` at `c528ca0`, preserving history. The owner reports that the transcription workflow is working; its implementation and data were left intact.
-- Replaced obsolete Jenkins delivery with isolated PR validation and a separate OIDC-only, approval-gated ECS/Fargate release job. Added saved-plan scope/checksum/encryption guards, immutable ECR publication, frontend release capsules, and a fresh authenticated smoke script. No AWS modification or backend initialization was performed during local implementation.
+- Replaced obsolete Jenkins delivery with isolated PR validation and a separate approval-gated ECS/Fargate release job using the AWS release agent's EC2 instance profile. Added saved-plan scope/checksum/encryption guards, immutable ECR publication, frontend release capsules, and a fresh authenticated smoke script. No AWS modification or backend initialization was performed during local implementation.
 - Retired the stale infra/runtime jobs, Kubernetes selector-switch scripts, k3s playbook, and static production inventory. Added Docker tooling and a local-only reusable Ansible workspace role.
 - Docker toolchain build and Ansible lint/syntax/check/apply/idempotence passed. Fifteen CI safety tests exercise backend mismatch rejection, data-resource plan rejection, secret-log suppression, unsafe bundle rejection, scoped IAM policies, encrypted plan diagnostics, and the actual frontend rollback script against local test doubles. Ten API, two worker and three frontend tests passed independently.
 - Initial security gates exposed old Nginx/OS and frontend build/dependency vulnerabilities. Updated the Nginx runtime, frontend build/test tooling and lockfile, and removed unused form/validation dependencies. Final independent API/worker/frontend image and frontend dependency scans each reported zero HIGH/CRITICAL findings; seven moderate development-tool advisories remain visible.

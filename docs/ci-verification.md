@@ -6,9 +6,9 @@ Date: 2026-11-11. Branch `giri`, based on `imran` commit `c528ca0`. This record 
 
 The latest user instructions require AWS-hosted Jenkins and a disposable **AWS** Ansible target after cost approval. The laptop controller was stopped and its launch files retired. Historical localhost links below are retained as evidence, not current hosting or acceptance.
 
-Prepared [the costed AWS design](jenkins-aws-design.md), proposed `jenkins-hosting` Terraform root, SSM inventory and guarded host foundation role. Added fixed 15-minute EC2 machine-role profiles with tests rejecting developer/static-key profiles. Backend-free Terraform validation passed, Ansible lint/syntax passed with `amazon.aws` 10.3.2, and 18 CI safety tests passed. No AWS backend was initialized and no hosting plan/apply or AWS target check/apply test was executed. Own profile `giri` and the account contact email remain to be verified after approval; no other developer's credentials were read or reused.
+Prepared [the costed AWS design](jenkins-aws-design.md), proposed `jenkins-hosting` Terraform root, SSM inventory and guarded host foundation role. Added fixed 15-minute EC2 machine-role profiles with tests rejecting developer/static-key profiles. Earlier backend-free Terraform validation passed, Ansible lint/syntax passed with `amazon.aws` 10.3.2, and 18 CI safety tests passed. No AWS backend was initialized and no hosting plan/apply or AWS target check/apply test was executed. The local AWS CLI has no `giri` profile; the operator's own access, backend metadata, AMI and live policy resources must be verified. No other developer's credentials were read or reused. There is no billing-email requirement.
 
-The owner subsequently approved **$70–$85/month extra**, **$220 account budget with verified contact alerts**, and **$2 one-off AWS test allowance** on 2026-11-11, reference `owner-chat-2026-11-11-cost-approved`. No cloud provisioning has occurred. Local application checks on 2026-11-12 are recorded separately in [local-verification.md](local-verification.md); they do not establish an AWS-hosted Jenkins run.
+Requested approval is **$70–$85/month extra**, **$220 account budget with verified contact alerts**, and **$2 one-off AWS test allowance**. Approval has not been granted. Do not interpret an instruction to choose sensible defaults as approval of these costs.
 
 Exact follow-up source commit `80930d1886f1d60b719538a9c4bce27ebbcc6746` was exported using `git archive` and tested in a disposable tools container, excluding local credentials/private artifacts. The real Trivy source-secret scan passed, all 18 safety tests passed, the cost script reproduced $69.47 nominal/$70–$85 planned, and Ansible lint/syntax passed. No Jenkins service or AWS target was started for those checks. Documentation-only commits after this source snapshot record evidence rather than imply a new AWS pipeline run.
 
@@ -80,7 +80,7 @@ On 2026-11-11 the public frontend returned HTTP 200, `/health` returned HTTP 200
 
 ## Production work not executed
 
-- No approved production Jenkins controller/job, agent, OIDC issuer/broker, or role trust was supplied.
+- No production Jenkins controller/job, agent, or deployed role trust was supplied. The intended AWS-hosted identity is direct EC2 release instance-profile trust; no OIDC issuer/broker is required.
 - No confirmed existing backend bucket/lock metadata or mounted production variables were supplied. No production `terraform init`, plan, or apply was executed.
 - No CI test-user token source, approved spoken-audio fixture, or known-good frontend release capsule was supplied. No production authenticated CI smoke job or live rollback was executed.
 - IAM policy JSON generation is a review aid, not evidence of installed permissions or successful role assumption. IAM Access Analyzer and real plan/apply authorization remain required.

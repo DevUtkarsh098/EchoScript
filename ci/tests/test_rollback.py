@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SHA = 'a' * 40
 
 
+@unittest.skipUnless(os.name != 'nt', 'Bash/AWS-double integration test requires a POSIX runner')
 class RollbackTests(unittest.TestCase):
     def test_previous_bundle_is_restored_and_unrelated_objects_survive(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -22,6 +23,10 @@ class RollbackTests(unittest.TestCase):
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / relative, path)
+            profile_check = root / 'ci/scripts/machine_profile.py'
+            profile_check.write_text(
+                '# Host profile validation is covered by test_machine_profile.py.\n', encoding='utf-8'
+            )
             (root / 'infrastructure/terraform/single-account').mkdir(parents=True)
             binaries = root / 'bin'
             binaries.mkdir()

@@ -1,0 +1,19 @@
+[Unit]
+Description=EchoScript isolated {{ jenkins_host_role }} Jenkins agent
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/echoscript-agent
+EnvironmentFile=/etc/echoscript/jenkins/agent.env
+Environment=DOCKER_CONFIG=/run/echoscript-jenkins-docker
+ExecStartPre=/usr/local/sbin/echoscript-jenkins-agent-ecr-auth login
+ExecStart=/usr/bin/docker compose --env-file /etc/echoscript/jenkins/agent.env -f /opt/echoscript-agent/compose.yml up -d
+ExecStop=/usr/bin/docker compose --env-file /etc/echoscript/jenkins/agent.env -f /opt/echoscript-agent/compose.yml stop
+ExecStopPost=/usr/local/sbin/echoscript-jenkins-agent-ecr-auth logout
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

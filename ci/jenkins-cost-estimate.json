@@ -18,6 +18,7 @@
   "ebs_gb_month_assumption": 0.08,
   "public_ipv4_hourly": 0.005,
   "backup_storage_allowance": 2.0,
+  "s3_backup_storage_allowance": 0.5,
   "logging_allowance": 2.0,
   "secrets_allowance": 1.45,
   "ecr_storage_allowance": 0.4,

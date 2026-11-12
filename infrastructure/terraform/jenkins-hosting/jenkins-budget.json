@@ -1,0 +1,9 @@
+{
+    "BudgetName":  "echoscript-prod-monthly",
+    "BudgetLimit":  {
+                        "Amount":  "220",
+                        "Unit":  "USD"
+                    },
+    "BudgetType":  "COST",
+    "TimeUnit":  "MONTHLY"
+}

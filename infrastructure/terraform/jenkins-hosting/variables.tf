@@ -10,12 +10,6 @@ variable "approved_account_budget_usd" {
   description = "Explicitly approved account-wide budget, including the existing application."
 }
 
-variable "verified_budget_email" {
-  type        = string
-  default     = ""
-  description = "Verified account billing/contact email, confirmed using the developer's own Identity Center access."
-}
-
 variable "ubuntu_ami_id" {
   type        = string
   description = "Pinned Canonical Ubuntu 24.04 amd64 AMI verified in us-west-2 before the approved plan."

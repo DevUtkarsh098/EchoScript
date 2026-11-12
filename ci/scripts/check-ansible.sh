@@ -6,8 +6,9 @@ export ANSIBLE_CONFIG="$PWD/ansible.cfg"
 ansible-lint --offline
 ansible-playbook playbooks/site.yml --syntax-check
 ansible-playbook playbooks/jenkins-hosts.yml --syntax-check
-# This script runs only INSIDE a fresh disposable Docker container as root.
-[[ -f /.dockerenv && "$(id -u)" == 0 ]] || { echo 'Use the disposable Docker target.' >&2; exit 2; }
+# The CI target is executed inside a rootless BuildKit sandbox; its RUN layer is
+# disposable and has no host mounts, network AWS identity, or Docker socket.
+[[ "${CI_ISOLATED_TEST:-}" == 1 && "$(id -u)" == 0 ]] || { echo 'Use the isolated BuildKit target.' >&2; exit 2; }
 ansible-playbook playbooks/site.yml --check
 ansible-playbook playbooks/site.yml
 # Fail if either a second apply or check mode proposes another change.
