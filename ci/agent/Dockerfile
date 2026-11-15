@@ -24,6 +24,8 @@ RUN python3 -m venv /opt/ci-venv \
     && /opt/ci-venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 COPY infrastructure/ansible/requirements.yml /tmp/ansible-collections.yml
 RUN /opt/ci-venv/bin/ansible-galaxy collection install -r /tmp/ansible-collections.yml -p /usr/share/ansible/collections
+ENV ANSIBLE_HOME=/tmp/ansible
+ENV XDG_CACHE_HOME=/tmp/cache
 ENV ANSIBLE_LOCAL_TEMP=/tmp/ansible-local
 ENV PATH="/opt/ci-venv/bin:${PATH}"
 COPY ci/agent/entrypoint.sh /usr/local/bin/echoscript-agent-entrypoint
