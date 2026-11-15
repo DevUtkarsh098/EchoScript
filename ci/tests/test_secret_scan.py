@@ -12,7 +12,7 @@ SCRIPT = ROOT / "ci" / "scripts" / "scan-secrets.sh"
 @unittest.skipUnless(os.name != 'nt', 'Bash shell integration tests require a POSIX runner')
 class SecretScanTests(unittest.TestCase):
     def run_scan(self, scanner_exit):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
             tmp_path = Path(tmp)
             scanner = tmp_path / "fake-trivy.sh"
             args_file = tmp_path / "args.txt"
