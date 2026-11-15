@@ -1,0 +1,17 @@
+global:
+  smtp_smarthost: mailpit:1025
+  smtp_from: alerts@echoscript.local
+  smtp_require_tls: false
+
+route:
+  receiver: local-mailpit
+  group_by: [alertname]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  - name: local-mailpit
+    email_configs:
+      - to: developer@echoscript.local
+        send_resolved: true
