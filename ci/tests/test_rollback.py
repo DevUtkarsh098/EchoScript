@@ -17,7 +17,7 @@ SHA = 'a' * 40
 @unittest.skipUnless(os.name != 'nt', 'Bash/AWS-double integration test requires a POSIX runner')
 class RollbackTests(unittest.TestCase):
     def test_previous_bundle_is_restored_and_unrelated_objects_survive(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
             root = Path(tmp)
             for relative in ['scripts/deploy-frontend.sh', 'ci/scripts/aws-preflight.sh', 'ci/scripts/bundle.py']:
                 path = root / relative
