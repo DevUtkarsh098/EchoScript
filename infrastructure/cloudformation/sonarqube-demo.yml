@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Private EchoScript SonarQube Community Build demo host
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Existing EchoScript VPC.
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Existing public subnet with outbound internet and SSM reachability.
+  ValidationAgentSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Only this existing agent security group may reach SonarQube port 9000.
+  SSMInstanceProfileName:
+    Type: String
+    Description: Existing least-privilege EC2 instance profile with Systems Manager access.
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: Latest Amazon Linux 2023 x86_64 image.
+  SourceRef:
+    Type: String
+    Default: giri
+    AllowedPattern: "^[A-Za-z0-9._/-]+$"
+    Description: Git ref containing docker-compose.sonarqube-demo.yml.
+
+Resources:
+  SonarQubeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SonarQube only from the EchoScript validation agent.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 9000
+          ToPort: 9000
+          SourceSecurityGroupId: !Ref ValidationAgentSecurityGroupId
+          Description: SonarScanner from the trusted validation agent.
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: echoscript-sonarqube-demo-sg
+        - Key: Project
+          Value: EchoScript
+        - Key: Purpose
+          Value: SonarQubeDemo
+
+  SonarQubeHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: t3a.large
+      IamInstanceProfile: !Ref SSMInstanceProfileName
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 1
+        HttpEndpoint: enabled
+      NetworkInterfaces:
+        - DeviceIndex: "0"
+          SubnetId: !Ref SubnetId
+          AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          GroupSet:
+            - !Ref SonarQubeSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            Encrypted: true
+            VolumeSize: 40
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -Eeuo pipefail
+          dnf install -y docker curl
+          systemctl enable --now docker
+          mkdir -p /usr/local/lib/docker/cli-plugins
+          curl -fsSL --retry 5 https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose
+          cat > /etc/sysctl.d/99-echoscript-sonarqube.conf <<'SYSCTL'
+          vm.max_map_count=524288
+          fs.file-max=131072
+          SYSCTL
+          sysctl --system
+          install -d -m 0755 /opt/echoscript-sonarqube
+          curl -fsSL --retry 5 https://raw.githubusercontent.com/DevUtkarsh098/EchoScript/${SourceRef}/docker-compose.sonarqube-demo.yml -o /opt/echoscript-sonarqube/compose.yml
+          docker compose -f /opt/echoscript-sonarqube/compose.yml pull
+          docker compose -f /opt/echoscript-sonarqube/compose.yml up -d
+      Tags:
+        - Key: Name
+          Value: echoscript-sonarqube-demo
+        - Key: Project
+          Value: EchoScript
+        - Key: Purpose
+          Value: SonarQubeDemo
+        - Key: ManagedBy
+          Value: CloudFormation
+
+Outputs:
+  SonarQubeInstanceId:
+    Description: Use this instance ID to open an SSM session or port-forward.
+    Value: !Ref SonarQubeHost
+  SonarQubePrivateIp:
+    Description: Configure the trusted validation job to use this private address.
+    Value: !GetAtt SonarQubeHost.PrivateIp
+  SonarQubeUrlThroughSsmTunnel:
+    Description: Local browser URL after starting the SSM port-forward on port 19000.
+    Value: http://localhost:19000
