@@ -1,0 +1,29 @@
+groups:
+  - name: echoscript-aws
+    rules:
+      - alert: EchoScriptApiUnavailable
+        expr: up{job="echoscript-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: EchoScript API metrics endpoint is unavailable
+          description: Prometheus has failed to scrape the AWS API metrics endpoint for two minutes.
+
+      - alert: EchoScriptApiHighLatency
+        expr: histogram_quantile(0.95, sum by (le, route) (rate(echoscript_http_request_duration_seconds_bucket{job="echoscript-api",route!="/metrics"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: EchoScript API p95 latency is above one second
+          description: At least one API route has had p95 latency above one second for five minutes.
+
+      - alert: EchoScriptApiHighMemory
+        expr: process_resident_memory_bytes{job="echoscript-api"} > 1610612736
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: EchoScript API process memory is above 1.5 GiB
+          description: The API process has exceeded 1.5 GiB resident memory for five minutes.
