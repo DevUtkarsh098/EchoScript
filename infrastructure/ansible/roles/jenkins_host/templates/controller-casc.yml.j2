@@ -127,10 +127,11 @@ credentials:
   system:
     domainCredentials:
       - credentials:
-          - string:
+          - usernamePassword:
               scope: SYSTEM
               id: github-read-token
-              secret: "${GITHUB_TOKEN}"
+              username: x-access-token
+              password: "${GITHUB_TOKEN}"
               description: GitHub read-only token for branch discovery and checkout
 jobs:
   - script: |
