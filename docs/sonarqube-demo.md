@@ -21,7 +21,7 @@ aws cloudformation create-stack \
   --profile echoscript-deploy \
   --region us-west-2 \
   --stack-name echoscript-sonarqube-demo \
-  --template-url https://raw.githubusercontent.com/DevUtkarsh098/EchoScript/codex/add-sonarqube-aws-demo/infrastructure/cloudformation/sonarqube-demo.yml \
+  --template-body file://infrastructure/cloudformation/sonarqube-demo.yml \
   --parameters \
     ParameterKey=VpcId,ParameterValue=vpc-0314dbfef4e6363f3 \
     ParameterKey=SubnetId,ParameterValue=subnet-06ca9db3f0802b67c \
