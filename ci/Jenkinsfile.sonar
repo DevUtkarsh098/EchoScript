@@ -1,0 +1,35 @@
+// Configure this as a single-branch Pipeline job for giri, not a Multibranch job.
+// SonarQube Community Build supports the main branch, but not Jenkins multibranch analysis.
+pipeline {
+  agent { label 'echoscript-validation' }
+
+  options {
+    skipDefaultCheckout(true)
+    disableConcurrentBuilds()
+    timestamps()
+  }
+
+  stages {
+    stage('Checkout giri') {
+      steps {
+        checkout scm
+        sh '''
+          set -eu
+          git fetch --quiet --no-tags origin giri
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)" || {
+            echo "This job is restricted to the current origin/giri commit." >&2
+            exit 2
+          }
+        '''
+      }
+    }
+
+    stage('SonarQube analysis') {
+      steps {
+        withCredentials([string(credentialsId: 'sonarqube-demo-token', variable: 'SONAR_TOKEN')]) {
+          sh 'bash ci/scripts/sonarqube-demo-scan.sh'
+        }
+      }
+    }
+  }
+}
