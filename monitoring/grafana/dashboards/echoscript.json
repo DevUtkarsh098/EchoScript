@@ -2,12 +2,103 @@
   "title": "EchoScript Operations",
   "uid": "echoscript-ops",
   "schemaVersion": 39,
+  "version": 1,
   "refresh": "30s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "panels": [
-    {"id": 1, "type": "stat", "title": "Active jobs", "targets": [{"expr": "echoscript_active_jobs"}], "gridPos": {"x": 0, "y": 0, "w": 6, "h": 5}},
-    {"id": 2, "type": "timeseries", "title": "Job submissions", "targets": [{"expr": "rate(echoscript_job_submissions_total[5m])"}], "gridPos": {"x": 6, "y": 0, "w": 9, "h": 7}},
-    {"id": 3, "type": "timeseries", "title": "API latency p95", "targets": [{"expr": "histogram_quantile(0.95, sum(rate(echoscript_http_request_duration_seconds_bucket[5m])) by (le, route))"}], "gridPos": {"x": 15, "y": 0, "w": 9, "h": 7}},
-    {"id": 4, "type": "timeseries", "title": "Job outcomes", "targets": [{"expr": "sum(rate(echoscript_job_results_total[10m])) by (status)"}], "gridPos": {"x": 0, "y": 7, "w": 12, "h": 7}}
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Active jobs",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "echoscript_active_jobs",
+          "legendFormat": "active"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Job submissions / second",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(echoscript_job_submissions_total[5m])",
+          "legendFormat": "submissions/s"
+        }
+      ],
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 9,
+        "h": 7
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "API latency p95",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(echoscript_http_request_duration_seconds_bucket{route!=\"/metrics\"}[5m])) )",
+          "legendFormat": "{{route}}"
+        }
+      ],
+      "gridPos": {
+        "x": 15,
+        "y": 0,
+        "w": 9,
+        "h": 7
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Job outcomes / second",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(echoscript_job_results_total[10m]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "API 5xx error ratio",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(echoscript_http_requests_total{status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(echoscript_http_requests_total[5m])), 0.001)",
+          "legendFormat": "5xx ratio"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 7,
+        "w": 12,
+        "h": 7
+      }
+    }
   ]
 }
-

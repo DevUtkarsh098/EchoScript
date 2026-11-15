@@ -1,12 +1,15 @@
 from datetime import datetime, timezone
 from pathlib import Path
 import tempfile
+from time import perf_counter
 from uuid import uuid4
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+from .metrics import http_requests, job_submissions, request_duration
 
 from .auth import Principal, get_principal
 from .config import get_settings
@@ -23,15 +26,20 @@ dispatcher = SQSJobDispatcher(settings.job_queue_url, settings.aws_region) if se
 app = FastAPI(title="EchoScript Ingest Service", version=settings.app_version)
 app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_credentials=False, allow_methods=["GET", "POST", "PUT", "OPTIONS"], allow_headers=["Authorization", "Content-Type"])
 
-job_submissions = Counter("echoscript_job_submissions_total", "Submitted jobs")
-active_jobs = Gauge("echoscript_active_jobs", "Active jobs")
-request_duration = Histogram("echoscript_http_request_duration_seconds", "API latency", ["method", "route"])
-
-
 @app.middleware("http")
 async def secure_response(request: Request, call_next):
-    with request_duration.labels(request.method, request.url.path).time():
+    started = perf_counter()
+    try:
         response = await call_next(request)
+    except Exception:
+        route = getattr(request.scope.get("route"), "path", "unmatched")
+        request_duration.labels(request.method, route).observe(perf_counter() - started)
+        http_requests.labels(request.method, route, "500").inc()
+        raise
+
+    route = getattr(request.scope.get("route"), "path", "unmatched")
+    request_duration.labels(request.method, route).observe(perf_counter() - started)
+    http_requests.labels(request.method, route, str(response.status_code)).inc()
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -172,7 +180,6 @@ def start_job(job_id: str, background: BackgroundTasks, principal: Principal = D
     job.updated_at = job.started_at
     repository.save(job)
     if settings.mock_processing:
-        active_jobs.inc()
         background.add_task(process_mock_job, repository, settings.data_dir, principal.sub, job.id)
     elif dispatcher:
         try:

@@ -20,3 +20,13 @@ The local profile uses explicit mock authentication and a deterministic processo
 
 See `docs/architecture.md`, `docs/local-development.md`, and `docs/deployment.md` for production guidance.
 
+
+## Local monitoring and alerts
+
+Start the application with Prometheus, Alertmanager, Grafana, and a local email sink:
+
+```sh
+make monitor
+```
+
+Open Grafana at <http://localhost:3000> (default user `admin`; set a unique local password with `GRAFANA_ADMIN_PASSWORD` in `.env`), Prometheus at <http://localhost:9090>, Alertmanager at <http://localhost:9093>, and the captured alert inbox at <http://localhost:8025>. All monitoring web ports bind to loopback. Alert emails are captured by Mailpit and are not sent externally. See [docs/monitoring.md](docs/monitoring.md) for alert rules and configuration.

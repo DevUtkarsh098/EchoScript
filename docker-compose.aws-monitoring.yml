@@ -1,0 +1,76 @@
+name: echoscript-monitoring
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=3d
+      - --storage.tsdb.retention.size=2GB
+    volumes:
+      - ./monitoring/prometheus/prometheus.aws.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts/aws.yml:/etc/prometheus/alerts/aws.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    mem_limit: 640m
+    cpus: 0.35
+    logging: &bounded-logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  alertmanager:
+    image: prom/alertmanager:v0.35.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    mem_limit: 192m
+    cpus: 0.1
+    depends_on:
+      - mailpit
+    logging: *bounded-logs
+
+  grafana:
+    image: grafana/grafana:13.3.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in the protected env file}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    mem_limit: 384m
+    cpus: 0.2
+    depends_on:
+      - prometheus
+      - alertmanager
+    logging: *bounded-logs
+
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+    mem_limit: 128m
+    cpus: 0.1
+    logging: *bounded-logs
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  grafana-data:

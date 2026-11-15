@@ -4,11 +4,35 @@ groups:
       - alert: EchoScriptApiUnavailable
         expr: up{job="echoscript-ingest"} == 0
         for: 2m
-        labels: {severity: critical}
-        annotations: {summary: EchoScript ingest API is unavailable}
-      - alert: EchoScriptHighFailureRate
-        expr: rate(echoscript_job_results_total{status="failed"}[15m]) / clamp_min(rate(echoscript_job_results_total[15m]), 0.001) > 0.2
-        for: 10m
-        labels: {severity: warning}
-        annotations: {summary: Transcription failure ratio exceeded 20 percent}
+        labels:
+          severity: critical
+        annotations:
+          summary: EchoScript ingest API is unavailable
+          description: Prometheus has not scraped the ingest API successfully for two minutes.
 
+      - alert: EchoScriptApiHigh5xxRate
+        expr: sum(rate(echoscript_http_requests_total{status_code=~"5.."}[5m])) / clamp_min(sum(rate(echoscript_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: EchoScript API 5xx ratio is above 5 percent
+          description: More than 5 percent of API requests returned server errors over the last five minutes.
+
+      - alert: EchoScriptApiHighLatency
+        expr: histogram_quantile(0.95, sum by (le, route) (rate(echoscript_http_request_duration_seconds_bucket{route!="/metrics"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: EchoScript API p95 latency is above one second
+          description: At least one API route has p95 latency above one second for five minutes.
+
+      - alert: EchoScriptHighFailureRate
+        expr: sum(rate(echoscript_job_results_total{status="failed"}[15m])) / clamp_min(sum(rate(echoscript_job_results_total[15m])), 0.001) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: EchoScript transcription failure ratio exceeded 20 percent
+          description: More than 20 percent of local transcription jobs failed over the last 15 minutes.

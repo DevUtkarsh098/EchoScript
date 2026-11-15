@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .models import JobStatus, VideoStatus
+from .metrics import active_jobs, job_results
 from .repository import LocalJobRepository
 
 
@@ -44,6 +45,7 @@ def process_mock_job(repository: LocalJobRepository, data_dir: Path, user_sub: s
     job = repository.get(user_sub, job_id)
     if not job:
         return
+    active_jobs.inc()
     try:
         time.sleep(1)
         stem = Path(job.filename).stem.replace("_", " ").replace("-", " ")
@@ -63,6 +65,7 @@ def process_mock_job(repository: LocalJobRepository, data_dir: Path, user_sub: s
         job.completed_at = datetime.now(timezone.utc)
         job.updated_at = job.completed_at
         repository.save(job)
+        job_results.labels(status="transcribed").inc()
         if job.generate_video:
             process_mock_video(repository, data_dir, user_sub, job_id)
     except Exception:
@@ -70,4 +73,7 @@ def process_mock_job(repository: LocalJobRepository, data_dir: Path, user_sub: s
         job.error_message = "The local processor could not complete this job."
         job.updated_at = datetime.now(timezone.utc)
         repository.save(job)
+        job_results.labels(status="failed").inc()
+    finally:
+        active_jobs.dec()
 

@@ -1,4 +1,4 @@
-.PHONY: setup dev test lint build smoke down
+.PHONY: setup dev test lint build smoke down monitor monitor-down
 
 setup:
 	docker compose build
@@ -23,3 +23,9 @@ smoke:
 down:
 	docker compose down
 
+
+monitor:
+	docker compose --profile monitoring up --build
+
+monitor-down:
+	docker compose --profile monitoring down
