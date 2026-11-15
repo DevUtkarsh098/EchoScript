@@ -75,7 +75,7 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           set -Eeuo pipefail
-          dnf install -y docker curl
+          dnf install -y docker
           systemctl enable --now docker
           mkdir -p /usr/local/lib/docker/cli-plugins
           curl -fsSL --retry 5 https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
