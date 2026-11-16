@@ -21,7 +21,7 @@ The EKS control plane and worker are billed hourly while the cluster exists. A t
 4. Configure kubectl for the demo cluster:
 
    ```sh
-   aws eks update-kubeconfig --name echoscript-professor-demo --region us-west-2
+   aws eks update-kubeconfig --name echoscript-professor-demo --region us-west-2 --profile echoscript-deploy
    ```
 
 5. Apply the demo workload and wait for it to become ready:
