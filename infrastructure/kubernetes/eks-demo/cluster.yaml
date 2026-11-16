@@ -1,0 +1,33 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: echoscript-professor-demo
+  region: us-west-2
+  version: "1.37"
+  tags:
+    Project: EchoScript
+    Purpose: professor-demo
+    Lifecycle: temporary
+autoModeConfig:
+  enabled: false
+vpc:
+  nat:
+    gateway: Disable
+  clusterEndpoints:
+    publicAccess: true
+    privateAccess: true
+  # Replace this with the public IP of the operator running eksctl, in CIDR form.
+  # Example: 203.0.113.7/32
+  publicAccessCIDRs:
+    - REPLACE_WITH_YOUR_PUBLIC_IP/32
+managedNodeGroups:
+  - name: demo-workers
+    instanceType: t3a.medium
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 1
+    volumeSize: 20
+    volumeType: gp3
+    privateNetworking: false
+    ssh:
+      allow: false
