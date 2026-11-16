@@ -15,7 +15,7 @@ The EKS control plane and worker are billed hourly while the cluster exists. A t
 3. Create the AWS cluster and managed worker:
 
    ```sh
-   eksctl create cluster --config-file infrastructure/kubernetes/eks-demo/cluster.yaml
+   AWS_PROFILE=echoscript-deploy eksctl create cluster --config-file infrastructure/kubernetes/eks-demo/cluster.yaml
    ```
 
 4. Configure kubectl for the demo cluster:
@@ -54,7 +54,7 @@ Delete the Kubernetes resources and the EKS cluster, managed worker, and demo VP
 
 ```sh
 kubectl delete -f infrastructure/kubernetes/eks-demo/workload.yaml
-eksctl delete cluster --config-file infrastructure/kubernetes/eks-demo/cluster.yaml
+AWS_PROFILE=echoscript-deploy eksctl delete cluster --config-file infrastructure/kubernetes/eks-demo/cluster.yaml
 ```
 
 Wait for eksctl to finish deleting both CloudFormation stacks. Check the CloudFormation console for any failed cleanup before considering the demo removed. Deletion does not remove unrelated project ECS resources, data, or repositories.
