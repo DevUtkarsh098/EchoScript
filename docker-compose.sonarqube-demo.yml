@@ -1,0 +1,34 @@
+services:
+  sonarqube:
+    image: sonarqube:26.11.0.134175-community
+    container_name: echoscript-sonarqube
+    restart: unless-stopped
+    init: true
+    cpus: 2.0
+    mem_limit: 6g
+    stop_grace_period: 2m
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_TELEMETRY_ENABLE: "false"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    ulimits:
+      nofile:
+        soft: 131072
+        hard: 131072
+      nproc:
+        soft: 8192
+        hard: 8192
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  sonarqube_data:
+    name: echoscript_sonarqube_data
+  sonarqube_extensions:
+    name: echoscript_sonarqube_extensions
+  sonarqube_logs:
+    name: echoscript_sonarqube_logs
